@@ -1,6 +1,6 @@
-package com.didi.portfoliomanagermock.config;
+package org.xian.protfoliomanage.config;
 
-import com.didi.portfoliomanagermock.repository.UserRepository;
+import org.xian.protfoliomanage.Repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;

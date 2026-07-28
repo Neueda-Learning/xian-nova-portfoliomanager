@@ -1,6 +1,6 @@
-package com.didi.portfoliomanagermock.repository;
+package org.xian.protfoliomanage.Repository;
 
-import com.didi.portfoliomanagermock.model.User;
+import org.xian.protfoliomanage.Model.User;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
