@@ -2,6 +2,7 @@ package org.xian.protfoliomanage.Controller;
 
 import org.xian.protfoliomanage.Dto.AddPortfolioItemRequest;
 import org.xian.protfoliomanage.Dto.PortfolioItemResponse;
+import org.xian.protfoliomanage.Dto.PortfolioSummaryResponse;
 import org.xian.protfoliomanage.Service.PortfolioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,12 +24,17 @@ public class PortfolioController {
 
     @GetMapping("/items")
     public List<PortfolioItemResponse> getItems() {
-        return portfolioService.getItems();
+        return portfolioService.getItemsForCurrentUser();
+    }
+
+    @GetMapping("/summary")
+    public PortfolioSummaryResponse getSummary() {
+        return portfolioService.getSummaryForCurrentUser();
     }
 
     @PostMapping("/items")
     public ResponseEntity<Map<String, Object>> addItem(@Valid @RequestBody AddPortfolioItemRequest request) {
-        long id = portfolioService.addItem(request);
+        long id = portfolioService.addItemForCurrentUser(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("id", id, "message", "Item added successfully"));
     }
@@ -38,13 +44,13 @@ public class PortfolioController {
             @PathVariable Long id,
             @Valid @RequestBody AddPortfolioItemRequest request
     ) {
-        portfolioService.updateItem(id, request);
+        portfolioService.updateItemForCurrentUser(id, request);
         return ResponseEntity.ok(Map.of("id", id, "message", "Item updated successfully"));
     }
 
     @DeleteMapping("/items/{id}")
     public ResponseEntity<Void> deleteItem(@PathVariable Long id) {
-        portfolioService.removeItem(id);
+        portfolioService.removeItemForCurrentUser(id);
         return ResponseEntity.noContent().build();
     }
 }
