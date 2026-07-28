@@ -34,6 +34,30 @@ const portfolioApi = {
             throw new Error(errorBody.message || 'Failed to add item');
         }
         return response.json();
-    }
+    },
+
+    async updateItem(id, payload) {
+        const response = await fetch(`/api/portfolio/items/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody.message || 'Failed to update item');
+        }
+        return response.json();
+    },
+
+    async deleteItem(id) {
+        const response = await fetch(`/api/portfolio/items/${id}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) {
+            throw new Error('Failed to delete item');
+        }
+    },
+
+
 };
 

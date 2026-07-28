@@ -197,6 +197,8 @@ async function loadDashboard() {
     renderChart(summary);
 }
 
+
+
 initSupportedTickerDropdowns();
 bindForm();
 loadDashboard().catch(error => {
