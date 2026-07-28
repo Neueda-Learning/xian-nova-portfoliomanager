@@ -6,13 +6,13 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.3.2</version>
-        <relativePath/>
+        <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.didi</groupId>
-    <artifactId>portfolio-manager-mock</artifactId>
+    <groupId>org.xian</groupId>
+    <artifactId>ProtfolioManage</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>portfolio-manager-mock</name>
-    <description>portfolio-manager-mock</description>
+    <name>ProtfolioManage</name>
+    <description>ProtfolioManage</description>
     <url/>
     <licenses>
         <license/>

@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_items (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    ticker VARCHAR(20) NOT NULL,
+    asset_type VARCHAR(20) NOT NULL,
+    quantity DECIMAL(10, 4) NOT NULL,
+    buy_price DECIMAL(15, 2) NOT NULL,
+    purchase_date DATE NOT NULL,
+    CONSTRAINT fk_portfolio_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS price_snapshots (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticker VARCHAR(20) NOT NULL,
+    latest_price DECIMAL(15, 2) NOT NULL,
+    raw_payload TEXT NOT NULL,
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
