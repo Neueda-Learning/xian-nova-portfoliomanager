@@ -1,611 +1,169 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Manager</title>
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 40px 20px;
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f8;
-            color: #222222;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            margin-bottom: 8px;
-            text-align: center;
-        }
-
-        .subtitle {
-            margin-top: 0;
-            margin-bottom: 30px;
-            text-align: center;
-            color: #666666;
-        }
-
-        .card {
-            margin-bottom: 24px;
-            padding: 24px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        h2 {
-            margin-top: 0;
-        }
-
-        .form-row {
-            display: flex;
-            gap: 16px;
-            align-items: end;
-            flex-wrap: wrap;
-        }
-
-        .form-group {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        button {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 5px;
-            font-size: 15px;
-            cursor: pointer;
-        }
-
-        .add-button {
-            background-color: #2563eb;
-            color: white;
-        }
-
-        .refresh-button {
-            background-color: #e5e7eb;
-            color: #222222;
-        }
-
-        .delete-button {
-            padding: 7px 12px;
-            background-color: #dc2626;
-            color: white;
-        }
-
-        button:hover {
-            opacity: 0.88;
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .table-header h2 {
-            margin: 0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #dddddd;
-            text-align: left;
-        }
-
-        th {
-            background-color: #f3f4f6;
-        }
-
-        .message {
-            min-height: 24px;
-            margin-top: 16px;
-            font-weight: bold;
-        }
-
-        .success {
-            color: #15803d;
-        }
-
-        .error {
-            color: #dc2626;
-        }
-
-        .info {
-            color: #555555;
-        }
-
-        .empty-message {
-            padding: 30px;
-            text-align: center;
-            color: #666666;
-        }
-
-        @media (max-width: 600px) {
-            body {
-                padding: 20px 10px;
-            }
-
-            .form-row {
-                display: block;
-            }
-
-            .form-group {
-                margin-bottom: 16px;
-            }
-
-            .table-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
 </head>
-
 <body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand">Portfolio Manager</span>
+        <div class="d-flex text-white gap-3 align-items-center">
+            <span id="currentUser"></span>
+            <form method="post" action="/logout">
+                <button class="btn btn-outline-light btn-sm" type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+</nav>
 
-<div class="container">
-
-    <h1>Portfolio Manager</h1>
-
-    <p class="subtitle">
-        Manage your financial portfolio
-    </p>
-
-    <!-- 添加投资项目区域 -->
-    <div class="card">
-
-        <h2>Add Portfolio Item</h2>
-
-        <form id="portfolioForm">
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label for="stockTicker">
-                        Stock Ticker
-                    </label>
-
-                    <input
-                            id="stockTicker"
-                            name="stockTicker"
-                            type="text"
-                            placeholder="For example: AAPL"
-                            required
-                    >
-
+<div class="container my-4">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Portfolio Summary</h5>
+                    <div class="metric"><span>Total Cost:</span> <strong id="totalCost">-</strong></div>
+                    <div class="metric"><span>Total Value:</span> <strong id="totalValue">-</strong></div>
+                    <div class="metric"><span>P/L:</span> <strong id="totalPnl">-</strong></div>
                 </div>
-
-                <div class="form-group">
-
-                    <label for="volume">
-                        Volume
-                    </label>
-
-                    <input
-                            id="volume"
-                            name="volume"
-                            type="number"
-                            min="1"
-                            placeholder="For example: 100"
-                            required
-                    >
-
-                </div>
-
-                <button
-                        class="add-button"
-                        type="submit"
-                >
-                    Add Item
-                </button>
-
             </div>
+        </div>
 
-        </form>
-
-        <div
-                id="formMessage"
-                class="message"
-        ></div>
-
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Allocation</h5>
+                    <div class="allocation-chart-container">
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- 投资组合列表区域 -->
-    <div class="card">
-
-        <div class="table-header">
-
-            <h2>Portfolio Items</h2>
-
-            <button
-                    class="refresh-button"
-                    type="button"
-                    onclick="loadPortfolio()"
-            >
-                Refresh
-            </button>
-
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Add Portfolio Item</h5>
+            <form id="addItemForm" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label" for="ticker">Ticker</label>
+                    <select class="form-select" id="ticker" required></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="assetType">Asset Type</label>
+                    <select class="form-select" id="assetType" required>
+                        <option value="STOCK">STOCK</option>
+                        <option value="BOND">BOND</option>
+                        <option value="CASH">CASH</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="quantity">Quantity</label>
+                    <input class="form-control" id="quantity" type="number" min="0.0001" step="0.0001" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="buyPrice">Buy Price</label>
+                    <input class="form-control" id="buyPrice" type="number" min="0" step="0.01" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="purchaseDate">Purchase Date</label>
+                    <input class="form-control" id="purchaseDate" type="date" required>
+                </div>
+                <div class="col-md-2 d-grid align-self-end">
+                    <button class="btn btn-primary" type="submit">Add</button>
+                </div>
+            </form>
+            <div id="formMessage" class="small mt-2"></div>
         </div>
-
-        <div id="loadingMessage" class="info">
-            Loading portfolio...
-        </div>
-
-        <div id="emptyMessage"
-             class="empty-message"
-             style="display: none;">
-            The portfolio is empty.
-        </div>
-
-        <table id="portfolioTable"
-               style="display: none;">
-
-            <thead>
-
-            <tr>
-                <th>ID</th>
-                <th>Stock Ticker</th>
-                <th>Volume</th>
-                <th>Action</th>
-            </tr>
-
-            </thead>
-
-            <tbody id="portfolioTableBody">
-            </tbody>
-
-        </table>
-
     </div>
 
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Holdings</h5>
+            <div class="small text-muted mb-2">Tip: click "Edit" to update an existing item.</div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Buy Price</th>
+                        <th>Purchase Date</th>
+                        <th>Current Price</th>
+                        <th>Current Value</th>
+                        <th>P/L</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="portfolioTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Live Price Snapshot</h5>
+            <form id="snapshotForm" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="snapshotTicker">Ticker</label>
+                    <select class="form-select" id="snapshotTicker" required></select>
+                </div>
+                <div class="col-md-2 d-grid align-self-end">
+                    <button class="btn btn-outline-primary" type="submit">Refresh Live</button>
+                </div>
+                <div class="col-md-4 align-self-end">
+                    <div class="btn-group w-100" role="group" aria-label="Snapshot window selector">
+                        <button class="btn btn-outline-secondary active" type="button" data-window="30">30D</button>
+                        <button class="btn btn-outline-secondary" type="button" data-window="90">90D</button>
+                        <button class="btn btn-outline-secondary" type="button" data-window="252">1Y</button>
+                    </div>
+                </div>
+            </form>
+            <div id="snapshotMessage" class="small mt-2"></div>
+            <div class="row mt-3 g-3">
+                <div class="col-md-3">
+                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Prev Close</div><div id="snapshotPrevClose" class="fw-semibold">-</div></div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Day Change</div><div id="snapshotDayChange" class="fw-semibold">-</div></div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Period High</div><div id="snapshotPeriodHigh" class="fw-semibold">-</div></div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Period Low</div><div id="snapshotPeriodLow" class="fw-semibold">-</div></div></div>
+                </div>
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-sm">
+                    <tbody>
+                    <tr><th scope="row">Average Close</th><td id="snapshotAvgClose">-</td></tr>
+                    <tr><th scope="row">Period Return</th><td id="snapshotPeriodReturn">-</td></tr>
+                    <tr><th scope="row">Volatility (Daily Return StdDev)</th><td id="snapshotVolatility">-</td></tr>
+                    <tr><th scope="row">Average Volume</th><td id="snapshotAvgVolume">-</td></tr>
+                    <tr><th scope="row">Latest Volume</th><td id="snapshotLatestVolume">-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2">
+                <canvas id="snapshotChart" height="110"></canvas>
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-sm">
+                    <tbody>
+                    <tr><th scope="row">Ticker</th><td id="snapshotTickerValue">-</td></tr>
+                    <tr><th scope="row">Latest Price</th><td id="snapshotPriceValue">-</td></tr>
+                    <tr><th scope="row">Fetched At</th><td id="snapshotFetchedAtValue">-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
-
-<script>
-    /*
-     * 加载全部投资组合数据
-     *
-     * 对应后端接口：
-     * GET /portfolio
-     */
-    async function loadPortfolio() {
-
-        const loadingMessage =
-            document.getElementById("loadingMessage");
-
-        const emptyMessage =
-            document.getElementById("emptyMessage");
-
-        const portfolioTable =
-            document.getElementById("portfolioTable");
-
-        const tableBody =
-            document.getElementById("portfolioTableBody");
-
-        loadingMessage.style.display = "block";
-        loadingMessage.textContent = "Loading portfolio...";
-
-        emptyMessage.style.display = "none";
-        portfolioTable.style.display = "none";
-
-        tableBody.innerHTML = "";
-
-        try {
-
-            const response = await fetch("/portfolio");
-
-            if (!response.ok) {
-                throw new Error(
-                    "GET request failed. Status: "
-                    + response.status
-                );
-            }
-
-            const portfolioItems =
-                await response.json();
-
-            loadingMessage.style.display = "none";
-
-            if (portfolioItems.length === 0) {
-
-                emptyMessage.style.display = "block";
-                return;
-            }
-
-            for (const item of portfolioItems) {
-
-                const row =
-                    document.createElement("tr");
-
-                const idCell =
-                    document.createElement("td");
-
-                const tickerCell =
-                    document.createElement("td");
-
-                const volumeCell =
-                    document.createElement("td");
-
-                const actionCell =
-                    document.createElement("td");
-
-                idCell.textContent = item.id;
-                tickerCell.textContent = item.stockTicker;
-                volumeCell.textContent = item.volume;
-
-                const deleteButton =
-                    document.createElement("button");
-
-                deleteButton.textContent = "Delete";
-                deleteButton.className = "delete-button";
-
-                deleteButton.addEventListener(
-                    "click",
-                    function () {
-                        deletePortfolioItem(
-                            item.id,
-                            item.stockTicker
-                        );
-                    }
-                );
-
-                actionCell.appendChild(deleteButton);
-
-                row.appendChild(idCell);
-                row.appendChild(tickerCell);
-                row.appendChild(volumeCell);
-                row.appendChild(actionCell);
-
-                tableBody.appendChild(row);
-            }
-
-            portfolioTable.style.display = "table";
-
-        } catch (error) {
-
-            loadingMessage.style.display = "block";
-
-            loadingMessage.textContent =
-                "Unable to load portfolio: "
-                + error.message;
-
-            console.error(error);
-        }
-    }
-
-
-    /*
-     * 添加新的投资组合项目
-     *
-     * 对应后端接口：
-     * POST /portfolio
-     */
-    async function addPortfolioItem(event) {
-
-        event.preventDefault();
-
-        const formMessage =
-            document.getElementById("formMessage");
-
-        const tickerInput =
-            document.getElementById("stockTicker");
-
-        const volumeInput =
-            document.getElementById("volume");
-
-        const stockTicker =
-            tickerInput.value.trim().toUpperCase();
-
-        const volume =
-            Number(volumeInput.value);
-
-        if (stockTicker === "") {
-
-            showFormMessage(
-                "Stock ticker cannot be empty.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (!Number.isInteger(volume) || volume <= 0) {
-
-            showFormMessage(
-                "Volume must be a positive whole number.",
-                "error"
-            );
-
-            return;
-        }
-
-        const portfolioItem = {
-            stockTicker: stockTicker,
-            volume: volume
-        };
-
-        showFormMessage(
-            "Adding portfolio item...",
-            "info"
-        );
-
-        try {
-
-            const response = await fetch(
-                "/portfolio",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify(portfolioItem)
-                }
-            );
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "POST request failed. Status: "
-                    + response.status
-                );
-            }
-
-            showFormMessage(
-                "Portfolio item added successfully.",
-                "success"
-            );
-
-            document
-                .getElementById("portfolioForm")
-                .reset();
-
-            await loadPortfolio();
-
-        } catch (error) {
-
-            showFormMessage(
-                "Unable to add portfolio item: "
-                + error.message,
-                "error"
-            );
-
-            console.error(error);
-        }
-    }
-
-
-    /*
-     * 删除投资组合项目
-     *
-     * 对应后端接口：
-     * DELETE /portfolio/{id}
-     */
-    async function deletePortfolioItem(
-        id,
-        stockTicker
-    ) {
-
-        const confirmed = confirm(
-            "Delete "
-            + stockTicker
-            + " from the portfolio?"
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-
-            const response = await fetch(
-                "/portfolio/" + id,
-                {
-                    method: "DELETE"
-                }
-            );
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "DELETE request failed. Status: "
-                    + response.status
-                );
-            }
-
-            showFormMessage(
-                "Portfolio item deleted successfully.",
-                "success"
-            );
-
-            await loadPortfolio();
-
-        } catch (error) {
-
-            showFormMessage(
-                "Unable to delete portfolio item: "
-                + error.message,
-                "error"
-            );
-
-            console.error(error);
-        }
-    }
-
-
-    /*
-     * 在页面中显示状态信息
-     */
-    function showFormMessage(
-        message,
-        messageType
-    ) {
-
-        const formMessage =
-            document.getElementById("formMessage");
-
-        formMessage.textContent = message;
-
-        formMessage.className =
-            "message " + messageType;
-    }
-
-
-    /*
-     * 绑定表单提交事件
-     */
-    document
-        .getElementById("portfolioForm")
-        .addEventListener(
-            "submit",
-            addPortfolioItem
-        );
-
-
-    /*
-     * 页面打开后自动加载投资组合
-     */
-    loadPortfolio();
-</script>
-
 </body>
-
-</html>
