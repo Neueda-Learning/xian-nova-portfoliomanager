@@ -1,0 +1,47 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+}
+
+.allocation-chart-container {
+    width: 100%;
+    max-width: 320px;
+    height: 400px;
+    margin: 0 auto;
+}
+
+#allocationChart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+#formMessage.error {
+    color: #dc3545;
+}
+
+#formMessage.success {
+    color: #198754;
+}
+
+.profit {
+    color: #198754;
+}
+
+.loss {
+    color: #dc3545;
+}
+
+#snapshotDayChange.profit,
+#snapshotPeriodReturn.profit {
+    font-weight: 600;
+}
+
+#snapshotDayChange.loss,
+#snapshotPeriodReturn.loss {
+    font-weight: 600;
+}

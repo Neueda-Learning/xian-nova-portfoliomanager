@@ -58,6 +58,14 @@ const portfolioApi = {
         }
     },
 
+    async fetchLiveSnapshot(ticker) {
+        const response = await fetch(`/api/price-snapshots/${encodeURIComponent(ticker)}/live`);
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody.message || 'Failed to fetch live snapshot');
+        }
+        return response.json();
+    }
 
 };
 
