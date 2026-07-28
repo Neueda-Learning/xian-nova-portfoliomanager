@@ -25,3 +25,7 @@ replay_pid*
 
 # IntelliJ IDEA project files
 .idea/
+.vscode/
+
+target/
+
