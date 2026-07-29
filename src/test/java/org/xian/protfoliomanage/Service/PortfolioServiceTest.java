@@ -13,13 +13,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class PortfolioServiceTest {
 
@@ -58,29 +62,37 @@ class PortfolioServiceTest {
         User user = new User(9L, "alice", "pw", LocalDateTime.now());
         when(currentUserService.getCurrentUser()).thenReturn(user);
         when(itemRepository.save(any(PortfolioItem.class))).thenReturn(123L);
+        LocalDate purchaseDate = LocalDate.parse("2026-02-10");
+        when(priceClientService.getPriceForDate("MSFT", purchaseDate)).thenReturn(new BigDecimal("301.23"));
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
                 "  msft ",
                 AssetType.STOCK,
                 new BigDecimal("5"),
-                new BigDecimal("88.80"),
-                LocalDate.parse("2026-02-10")
+                purchaseDate
         );
 
         long id = service.addItemForCurrentUser(request);
 
         assertEquals(123L, id);
-        verify(itemRepository).save(any(PortfolioItem.class));
+        ArgumentCaptor<PortfolioItem> captor = ArgumentCaptor.forClass(PortfolioItem.class);
+        verify(itemRepository).save(captor.capture());
+
+        PortfolioItem saved = captor.getValue();
+        assertEquals("MSFT", saved.getTicker());
+        assertEquals(new BigDecimal("301.23"), saved.getBuyPrice());
+        verify(priceClientService).getPriceForDate("MSFT", purchaseDate);
     }
 
     @Test
     void updateItemForCurrentUserThrowsWhenItemMissing() {
         User user = new User(7L, "bob", "pw", LocalDateTime.now());
         when(currentUserService.getCurrentUser()).thenReturn(user);
+        when(itemRepository.findByIdAndUserId(99L, 7L)).thenReturn(Optional.empty());
         when(itemRepository.updateByIdAndUserId(any(PortfolioItem.class))).thenReturn(0);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "aapl", AssetType.STOCK, new BigDecimal("1"), new BigDecimal("1"), LocalDate.now()
+                "aapl", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
         );
 
         IllegalArgumentException ex = assertThrows(
@@ -89,6 +101,29 @@ class PortfolioServiceTest {
         );
 
         assertEquals("Portfolio item not found", ex.getMessage());
+    }
+
+    @Test
+    void updateItemForCurrentUserKeepsBuyPriceWhenTickerAndDateUnchanged() {
+        User user = new User(7L, "bob", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+
+        LocalDate purchaseDate = LocalDate.parse("2026-01-01");
+        PortfolioItem existing = new PortfolioItem(9L, 7L, "AAPL", AssetType.STOCK,
+                new BigDecimal("1"), new BigDecimal("105.50"), purchaseDate);
+        when(itemRepository.findByIdAndUserId(9L, 7L)).thenReturn(Optional.of(existing));
+        when(itemRepository.updateByIdAndUserId(any(PortfolioItem.class))).thenReturn(1);
+
+        AddPortfolioItemRequest request = new AddPortfolioItemRequest(
+                "AAPL", AssetType.STOCK, new BigDecimal("2"), purchaseDate
+        );
+
+        service.updateItemForCurrentUser(9L, request);
+
+        ArgumentCaptor<PortfolioItem> captor = ArgumentCaptor.forClass(PortfolioItem.class);
+        verify(itemRepository).updateByIdAndUserId(captor.capture());
+        assertEquals(new BigDecimal("105.50"), captor.getValue().getBuyPrice());
+        verify(priceClientService, never()).getPriceForDate(any(), any());
     }
 
     @Test
@@ -134,13 +169,29 @@ class PortfolioServiceTest {
         when(currentUserService.getCurrentUser()).thenReturn(user);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "   ", AssetType.STOCK, new BigDecimal("5"), new BigDecimal("88.80"), LocalDate.now()
+                "   ", AssetType.STOCK, new BigDecimal("5"), LocalDate.now()
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> service.addItemForCurrentUser(request));
 
         assertEquals("Ticker cannot be blank", ex.getMessage());
+    }
+
+    @Test
+    void addItemForCurrentUserThrowsWhenLivePriceUnavailable() {
+        User user = new User(9L, "alice", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+        when(priceClientService.getPriceForDate(eq("AAPL"), any())).thenReturn(null);
+
+        AddPortfolioItemRequest request = new AddPortfolioItemRequest(
+                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.addItemForCurrentUser(request));
+
+        assertEquals("Unable to fetch current market price for ticker: AAPL", ex.getMessage());
     }
 }
 

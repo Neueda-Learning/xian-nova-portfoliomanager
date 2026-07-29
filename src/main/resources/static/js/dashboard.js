@@ -9,6 +9,10 @@ let portfolioItems = [];
 let portfolioSummary = null;
 let snapshotRequestController = null;
 let navigationIntentTimer = null;
+let dashboardRefreshTimer = null;
+let dashboardRefreshInFlight = false;
+
+const DASHBOARD_REFRESH_INTERVAL_MS = 15000;
 
 const SUPPORTED_TICKERS = ['C', 'AMZN', 'TSLA', 'FB', 'AAPL'];
 const ASSET_NAMES = {
@@ -529,7 +533,6 @@ function openEditDialog(item) {
     document.getElementById('ticker').value = item.ticker;
     document.getElementById('assetType').value = item.assetType;
     document.getElementById('quantity').value = item.quantity;
-    document.getElementById('buyPrice').value = item.buyPrice;
     document.getElementById('purchaseDate').value = toDateInputValue(item.purchaseDate);
     document.getElementById('positionDialogTitle').textContent = `Edit ${item.ticker} position`;
     document.getElementById('savePositionLabel').textContent = 'Save changes';
@@ -553,14 +556,50 @@ function closeDialog(dialogId) {
     }
 }
 
-async function loadDashboard() {
-    const [user, items, summary] = await Promise.all([
-        portfolioApi.fetchCurrentUser(),
+async function loadDashboard({ includeUser = false } = {}) {
+    const requests = [
         portfolioApi.fetchItems(),
         portfolioApi.fetchSummary()
-    ]);
-    setPageContext(user.username);
+    ];
+    if (includeUser) {
+        requests.unshift(portfolioApi.fetchCurrentUser());
+    }
+
+    const result = await Promise.all(requests);
+    const offset = includeUser ? 1 : 0;
+    if (includeUser) {
+        setPageContext(result[0].username);
+    }
+
+    const items = result[offset];
+    const summary = result[offset + 1];
     renderDashboard(items, summary);
+}
+
+async function refreshDashboardSilently() {
+    if (dashboardRefreshInFlight) {
+        return;
+    }
+    dashboardRefreshInFlight = true;
+
+    try {
+        await loadDashboard();
+    } catch (error) {
+        document.getElementById('lastUpdated').innerHTML = '<i class="bi bi-exclamation-circle" aria-hidden="true"></i> Waiting to reconnect';
+    } finally {
+        dashboardRefreshInFlight = false;
+    }
+}
+
+function startDashboardAutoRefresh() {
+    if (dashboardRefreshTimer !== null) {
+        window.clearInterval(dashboardRefreshTimer);
+    }
+    dashboardRefreshTimer = window.setInterval(() => {
+        if (!document.hidden) {
+            refreshDashboardSilently();
+        }
+    }, DASHBOARD_REFRESH_INTERVAL_MS);
 }
 
 function bindPositionForm() {
@@ -574,7 +613,6 @@ function bindPositionForm() {
             ticker: document.getElementById('ticker').value,
             assetType: document.getElementById('assetType').value,
             quantity: Number(document.getElementById('quantity').value),
-            buyPrice: Number(document.getElementById('buyPrice').value),
             purchaseDate: document.getElementById('purchaseDate').value
         };
         const isEditing = editingItemId !== null;
@@ -1038,8 +1076,9 @@ async function initialize() {
         document.fonts.ready.then(fitHeroMetricValues);
     }
 
+    startDashboardAutoRefresh();
     try {
-        await loadDashboard();
+        await loadDashboard({ includeUser: true });
     } catch (error) {
         removeSkeletons();
         document.getElementById('portfolioTableBody').innerHTML = `
