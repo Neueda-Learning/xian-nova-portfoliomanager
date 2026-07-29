@@ -9,6 +9,10 @@ import org.springframework.web.client.RestClient;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class PriceClientService {
 
-    private static final Duration CACHE_DURATION = Duration.ofSeconds(45);
+    private static final Duration CACHE_DURATION = Duration.ofSeconds(10);
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
@@ -51,6 +55,37 @@ public class PriceClientService {
             return quote.latestPrice();
         }
         return null;
+    }
+
+    public BigDecimal getPriceForDate(String rawTicker, LocalDate purchaseDate) {
+        String ticker = normalizeTicker(rawTicker);
+        if (ticker.isBlank()) {
+            return null;
+        }
+        if ("CASH".equals(ticker)) {
+            return BigDecimal.ONE;
+        }
+
+        PriceQuote quote = fetchLatestQuote(ticker);
+        if (quote == null || quote.latestPrice() == null || quote.latestPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        if (purchaseDate == null) {
+            return quote.latestPrice();
+        }
+
+        List<BigDecimal> closes = extractCloseSeries(quote.rawPayload());
+        if (closes.isEmpty()) {
+            return quote.latestPrice();
+        }
+
+        long daysAgo = ChronoUnit.DAYS.between(purchaseDate, LocalDate.now());
+        if (daysAgo <= 0) {
+            return quote.latestPrice();
+        }
+
+        int stepsBack = (int) Math.min(daysAgo, closes.size() - 1L);
+        return closes.get(closes.size() - 1 - stepsBack);
     }
 
     public PriceQuote fetchLatestQuote(String rawTicker) {
@@ -110,6 +145,39 @@ public class PriceClientService {
             }
         }
         return null;
+    }
+
+    private List<BigDecimal> extractCloseSeries(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            JsonNode nestedClose = root.path("price_data").path("close");
+            if (nestedClose.isArray() && !nestedClose.isEmpty()) {
+                return readDecimalArray(nestedClose);
+            }
+
+            JsonNode flatClose = root.path("close");
+            if (flatClose.isArray() && !flatClose.isEmpty()) {
+                return readDecimalArray(flatClose);
+            }
+        } catch (Exception ignored) {
+
+        }
+
+        return List.of();
+    }
+
+    private List<BigDecimal> readDecimalArray(JsonNode values) {
+        List<BigDecimal> result = new ArrayList<>();
+        for (JsonNode value : values) {
+            if (value != null && value.isNumber()) {
+                result.add(value.decimalValue());
+            }
+        }
+        return result;
     }
 
     private String normalizeTicker(String rawTicker) {
