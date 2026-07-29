@@ -147,7 +147,7 @@ public class PriceClientService {
         return null;
     }
 
-    private List<BigDecimal> extractCloseSeries(String payload) {
+    public List<BigDecimal> extractCloseSeries(String payload) {
         if (payload == null || payload.isBlank()) {
             return List.of();
         }
@@ -162,6 +162,10 @@ public class PriceClientService {
             JsonNode flatClose = root.path("close");
             if (flatClose.isArray() && !flatClose.isEmpty()) {
                 return readDecimalArray(flatClose);
+            }
+
+            if (root.isArray() && !root.isEmpty()) {
+                return readDecimalArray(root);
             }
         } catch (Exception ignored) {
 

@@ -783,6 +783,11 @@ p {
     scroll-margin-top: 24px;
 }
 
+.forecast-card {
+    margin-top: 20px;
+    scroll-margin-top: 24px;
+}
+
 .holdings-heading,
 .market-heading {
     align-items: center;
@@ -1070,6 +1075,11 @@ p {
     gap: 9px;
 }
 
+.forecast-controls {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .snapshot-controls select {
     min-width: 112px;
     color: var(--ink);
@@ -1247,6 +1257,29 @@ p {
     display: grid;
     grid-template-columns: 1fr;
     border-left: 1px solid var(--line);
+}
+
+.forecast-body {
+    display: grid;
+    grid-template-columns: minmax(420px, 2.2fr) minmax(220px, 0.8fr);
+    min-height: 360px;
+}
+
+.forecast-chart-wrap {
+    margin: 0;
+    height: 340px;
+    padding: 20px 24px;
+}
+
+.forecast-stats {
+    border-left: 1px solid var(--line);
+}
+
+.forecast-message {
+    min-height: 44px;
+    padding: 0 24px 18px;
+    color: var(--ink-soft);
+    font-size: 11px;
 }
 
 .market-stat {
@@ -1921,6 +1954,20 @@ p {
         grid-template-columns: 220px minmax(360px, 1fr);
     }
 
+    .forecast-body {
+        grid-template-columns: 1fr;
+    }
+
+    .forecast-chart-wrap {
+        height: 300px;
+    }
+
+    .forecast-stats {
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--line);
+        border-left: 0;
+    }
+
     .market-stats {
         grid-column: 1 / -1;
         grid-template-columns: repeat(3, 1fr);
@@ -2172,6 +2219,10 @@ p {
     }
 
     .market-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .forecast-stats {
         grid-template-columns: 1fr 1fr;
     }
 

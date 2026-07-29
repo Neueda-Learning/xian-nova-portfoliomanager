@@ -2,7 +2,10 @@ package org.xian.protfoliomanage;
 
 import org.junit.jupiter.api.Test;
 import org.xian.protfoliomanage.Dto.AddPortfolioItemRequest;
+import org.xian.protfoliomanage.Dto.ForecastModelType;
+import org.xian.protfoliomanage.Dto.ForecastPointResponse;
 import org.xian.protfoliomanage.Dto.PortfolioItemResponse;
+import org.xian.protfoliomanage.Dto.PriceForecastResponse;
 import org.xian.protfoliomanage.Dto.PortfolioSummaryResponse;
 import org.xian.protfoliomanage.Dto.PriceSnapshotResponse;
 import org.xian.protfoliomanage.Model.AssetType;
@@ -13,6 +16,7 @@ import org.xian.protfoliomanage.Model.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +72,17 @@ class ModelAndDtoSmokeTest {
                 2L, "MSFT", new BigDecimal("10"), LocalDateTime.parse("2026-01-01T00:00:00"), "{}"
         );
         assertEquals("MSFT", snapshot.ticker());
+
+        PriceForecastResponse forecast = new PriceForecastResponse(
+                "AAPL",
+                ForecastModelType.WMA,
+                30,
+                new BigDecimal("100"),
+                new BigDecimal("101"),
+                new BigDecimal("1"),
+                List.of(new ForecastPointResponse("Tomorrow", new BigDecimal("101"), true))
+        );
+        assertEquals(ForecastModelType.WMA, forecast.model());
     }
 }
 

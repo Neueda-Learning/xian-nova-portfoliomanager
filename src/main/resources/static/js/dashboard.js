@@ -1,6 +1,7 @@
 let allocationChart = null;
 let performanceChart = null;
 let snapshotChart = null;
+let forecastLabChart = null;
 let editingItemId = null;
 let pendingRemovalItem = null;
 let currentSnapshot = null;
@@ -11,8 +12,18 @@ let snapshotRequestController = null;
 let navigationIntentTimer = null;
 let dashboardRefreshTimer = null;
 let dashboardRefreshInFlight = false;
+let holdingsForecastRequestId = 0;
+let forecastLabRequestController = null;
+let currentForecastLab = null;
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 15000;
+const HOLDINGS_FORECAST_TTL_MS = 60000;
+const HOLDINGS_FORECAST_WINDOW = 30;
+const FORECAST_LAB_MODEL = 'LINEAR_REGRESSION';
+const HOLDINGS_FORECAST_MODEL = FORECAST_LAB_MODEL;
+let selectedForecastWindow = 90;
+
+const holdingsForecastByTicker = new Map();
 
 const SUPPORTED_TICKERS = ['C', 'AMZN', 'TSLA', 'FB', 'AAPL'];
 const ASSET_NAMES = {
@@ -454,6 +465,8 @@ function renderTable() {
         const pnl = Number(item.profitLoss);
         const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
         const directionClass = getDirectionClass(pnlPct);
+        const forecast = holdingsForecastByTicker.get(String(item.ticker).toUpperCase());
+        const forecastCell = buildForecastPnlCell(item, forecast);
         const ticker = escapeHtml(item.ticker);
         const type = escapeHtml(String(item.assetType || '').toLowerCase());
         const company = escapeHtml(ASSET_NAMES[item.ticker] || `${item.assetType || 'Portfolio'} asset`);
@@ -479,6 +492,7 @@ function renderTable() {
                     ${percent(pnlPct, true)}
                 </span>
             </td>
+            <td>${forecastCell}</td>
             <td>
                 <span class="row-actions">
                     <button class="row-action" type="button" data-action="edit" aria-label="Edit ${ticker}" title="Edit">
@@ -497,6 +511,79 @@ function renderTable() {
     });
 }
 
+function buildForecastPnlCell(item, forecast) {
+    if (!forecast || forecast.status === 'loading') {
+        return '<span class="table-return neutral"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Calculating…</span>';
+    }
+
+    if (forecast.status !== 'ready' || !Number.isFinite(forecast.predictedNextClose)) {
+        return '<span class="table-return neutral"><i class="bi bi-dash" aria-hidden="true"></i>—</span>';
+    }
+
+    const quantity = Number(item.quantity) || 0;
+    const currentPrice = Number(item.currentPrice) || 0;
+    const currentValue = quantity * currentPrice;
+    const predictedValue = quantity * forecast.predictedNextClose;
+    const predictedPnl = predictedValue - currentValue;
+    const predictedPnlPct = currentValue > 0 ? (predictedPnl / currentValue) * 100 : 0;
+    const directionClass = getDirectionClass(predictedPnlPct);
+
+    return `
+        <span class="table-return ${directionClass}" title="Predicted next close: ${money(forecast.predictedNextClose)} (${forecast.model})">
+            <i class="bi ${getDirectionIcon(predictedPnlPct)}" aria-hidden="true"></i>
+            ${money(predictedPnl)} · ${percent(predictedPnlPct, true)}
+        </span>
+    `;
+}
+
+function isForecastFresh(forecast) {
+    return !!forecast && Number.isFinite(forecast.fetchedAt) && (Date.now() - forecast.fetchedAt) < HOLDINGS_FORECAST_TTL_MS;
+}
+
+async function refreshHoldingsForecast(items) {
+    const tickers = Array.from(new Set(items
+        .map(item => String(item.ticker || '').trim().toUpperCase())
+        .filter(ticker => ticker.length > 0)));
+
+    if (!tickers.length) {
+        return;
+    }
+
+    const requestId = ++holdingsForecastRequestId;
+    const tickersToFetch = tickers.filter(ticker => !isForecastFresh(holdingsForecastByTicker.get(ticker)));
+    tickersToFetch.forEach(ticker => {
+        holdingsForecastByTicker.set(ticker, { status: 'loading', fetchedAt: Date.now() });
+    });
+
+    if (tickersToFetch.length) {
+        renderTable();
+    }
+
+    const results = await Promise.allSettled(
+        tickersToFetch.map(ticker => portfolioApi.fetchForecast(ticker, HOLDINGS_FORECAST_WINDOW, HOLDINGS_FORECAST_MODEL))
+    );
+
+    if (requestId !== holdingsForecastRequestId) {
+        return;
+    }
+
+    results.forEach((result, index) => {
+        const ticker = tickersToFetch[index];
+        if (result.status === 'fulfilled' && Number.isFinite(Number(result.value?.predictedNextClose))) {
+            holdingsForecastByTicker.set(ticker, {
+                status: 'ready',
+                model: String(result.value.model || HOLDINGS_FORECAST_MODEL),
+                predictedNextClose: Number(result.value.predictedNextClose),
+                fetchedAt: Date.now()
+            });
+            return;
+        }
+        holdingsForecastByTicker.set(ticker, { status: 'error', fetchedAt: Date.now() });
+    });
+
+    renderTable();
+}
+
 function renderDashboard(items, summary) {
     portfolioItems = items;
     portfolioSummary = summary;
@@ -504,6 +591,9 @@ function renderDashboard(items, summary) {
     renderPerformanceChart(items);
     renderAllocationChart(summary);
     renderTable();
+    refreshHoldingsForecast(items).catch(() => {
+        // Forecast failures should not block core holdings rendering.
+    });
     markUpdated();
 }
 
@@ -700,6 +790,14 @@ function standardDeviation(values) {
     return Math.sqrt(variance);
 }
 
+function formatForecastModel(model) {
+    const normalized = String(model || '').toUpperCase();
+    if (normalized === 'LINEAR_REGRESSION') {
+        return 'Linear Regression';
+    }
+    return normalized || '—';
+}
+
 function setSnapshotMetric(id, text, cssClass = '') {
     const node = document.getElementById(id);
     node.textContent = text;
@@ -759,31 +857,38 @@ function renderSnapshotChart(series, ticker) {
 
     ctx.hidden = false;
     placeholder.hidden = true;
-    const labels = close.map((_, index) => {
+
+    let labels = close.map((_, index) => {
         const daysAgo = close.length - index - 1;
         return daysAgo === 0 ? 'Today' : `${daysAgo}d`;
     });
+    const closeDataset = close;
 
-    const directionUp = close[close.length - 1] >= close[0];
+    const firstClose = Number(closeDataset.find(value => Number.isFinite(value)));
+    const latestClose = Number([...closeDataset].reverse().find(value => Number.isFinite(value)));
+    const directionUp = latestClose >= firstClose;
     const lineColor = directionUp ? '#2b5a43' : '#c4534f';
     const fillColor = directionUp ? 'rgba(43, 90, 67, 0.08)' : 'rgba(196, 83, 79, 0.07)';
+
+    const datasets = [{
+        label: `${ticker} close`,
+        data: closeDataset,
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: lineColor,
+        spanGaps: true
+    }];
 
     snapshotChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
-            datasets: [{
-                label: `${ticker} close`,
-                data: close,
-                borderColor: lineColor,
-                backgroundColor: fillColor,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.35,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: lineColor
-            }]
+            datasets
         },
         options: {
             responsive: true,
@@ -801,7 +906,7 @@ function renderSnapshotChart(series, ticker) {
                     padding: 10,
                     cornerRadius: 9,
                     callbacks: {
-                        label: context => money(context.parsed.y)
+                        label: context => `${context.dataset.label}: ${money(context.parsed.y)}`
                     }
                 }
             },
@@ -959,9 +1064,188 @@ function bindSnapshotControls() {
                 node.setAttribute('aria-pressed', String(active));
             });
             if (currentSnapshot) {
-                renderSnapshot(currentSnapshot);
+                loadSnapshot(currentSnapshot.ticker || document.getElementById('snapshotTicker').value, { silent: true });
             }
         });
+    });
+}
+
+function setForecastLabMetric(id, text, cssClass = '') {
+    const node = document.getElementById(id);
+    node.textContent = text;
+    node.classList.remove('profit', 'loss', 'neutral');
+    if (cssClass) {
+        node.classList.add(cssClass);
+    }
+}
+
+function getSmoothingLabel() {
+    return 'Raw';
+}
+
+function renderForecastLabChart(forecast, ticker) {
+    const ctx = document.getElementById('forecastChart');
+    const placeholder = document.getElementById('forecastPlaceholder');
+    const points = Array.isArray(forecast?.points) ? forecast.points : [];
+    if (forecastLabChart) {
+        forecastLabChart.destroy();
+        forecastLabChart = null;
+    }
+
+    if (!points.length || typeof Chart === 'undefined') {
+        ctx.hidden = true;
+        placeholder.hidden = false;
+        return;
+    }
+
+    const labels = points.map(point => point.label || '');
+    const historicalSeries = points.map(point => (point.predicted ? null : Number(point.close)));
+
+    const forecastSeries = Array.from({ length: points.length }, () => null);
+    const tomorrowIndex = points.findIndex(point => point.predicted);
+    if (tomorrowIndex > 0) {
+        forecastSeries[tomorrowIndex - 1] = Number(points[tomorrowIndex - 1].close);
+        forecastSeries[tomorrowIndex] = Number(points[tomorrowIndex].close);
+    }
+
+    const datasets = [
+        {
+            label: `${ticker} historical`,
+            data: historicalSeries,
+            borderColor: '#9ab4a6',
+            borderWidth: 1,
+            fill: false,
+            tension: 0.15,
+            cubicInterpolationMode: 'monotone',
+            pointRadius: 0,
+            spanGaps: true
+        }
+    ];
+
+    datasets.push({
+        label: `${formatForecastModel(forecast.model)} forecast`,
+        data: forecastSeries,
+        borderColor: '#e8a45c',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.45,
+        cubicInterpolationMode: 'monotone',
+        pointRadius: context => (context.dataIndex === forecastSeries.length - 1 ? 4 : 0),
+        spanGaps: true,
+        borderDash: [6, 6]
+    });
+
+    ctx.hidden = false;
+    placeholder.hidden = true;
+    forecastLabChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    backgroundColor: '#14261d',
+                    callbacks: {
+                        label: context => `${context.dataset.label}: ${money(context.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false }
+                },
+                y: {
+                    border: { display: false },
+                    ticks: { callback: value => compactMoney(value) }
+                }
+            }
+        }
+    });
+}
+
+function renderForecastLab(forecast, ticker) {
+    currentForecastLab = forecast;
+    const predictedClose = Number(forecast?.predictedNextClose);
+    const predictedChange = Number(forecast?.predictedChangePercent);
+    const latestClose = Number(forecast?.latestClose);
+    const modelName = formatForecastModel(forecast?.model || FORECAST_LAB_MODEL);
+
+    setForecastLabMetric('forecastModelName', modelName);
+    setForecastLabMetric('forecastLatestClose', Number.isFinite(latestClose) ? money(latestClose) : '—');
+    setForecastLabMetric('forecastNextClose', Number.isFinite(predictedClose) ? money(predictedClose) : '—');
+    setForecastLabMetric(
+        'forecastNextChange',
+        Number.isFinite(predictedChange) ? percent(predictedChange, true) : '—',
+        getDirectionClass(predictedChange)
+    );
+    setForecastLabMetric('forecastSmoothMode', getSmoothingLabel());
+
+    document.getElementById('forecastMessage').textContent = `${ticker} forecast ready with ${modelName}, ${selectedForecastWindow}D history.`;
+    renderForecastLabChart(forecast, ticker);
+}
+
+async function loadForecastLab(ticker, { silent = false } = {}) {
+    const button = document.getElementById('refreshForecastButton');
+    const icon = button.querySelector('i');
+    if (forecastLabRequestController) {
+        forecastLabRequestController.abort();
+    }
+
+    const requestController = new AbortController();
+    forecastLabRequestController = requestController;
+    button.disabled = true;
+    icon.classList.add('is-spinning');
+    document.getElementById('forecastMessage').textContent = `Running ${formatForecastModel(FORECAST_LAB_MODEL)} model for ${ticker}…`;
+
+    try {
+        const forecast = await portfolioApi.fetchForecast(
+            ticker,
+            selectedForecastWindow,
+            FORECAST_LAB_MODEL,
+            requestController.signal
+        );
+        renderForecastLab(forecast, ticker);
+        if (!silent) {
+            showToast(`Forecast updated for ${ticker} (${formatForecastModel(FORECAST_LAB_MODEL)}).`);
+        }
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            document.getElementById('forecastMessage').textContent = error.message || `Forecast is unavailable for ${ticker}.`;
+            if (!silent) {
+                showToast(error.message || `Forecast is unavailable for ${ticker}.`, 'error');
+            }
+        }
+    } finally {
+        if (forecastLabRequestController === requestController) {
+            button.disabled = false;
+            icon.classList.remove('is-spinning');
+            forecastLabRequestController = null;
+        }
+    }
+}
+
+function bindForecastControls() {
+    const form = document.getElementById('forecastForm');
+    const tickerSelect = document.getElementById('forecastTicker');
+    const windowSelect = document.getElementById('forecastWindow');
+
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        loadForecastLab(tickerSelect.value);
+    });
+
+    tickerSelect.addEventListener('change', () => loadForecastLab(tickerSelect.value, { silent: true }));
+
+    windowSelect.addEventListener('change', () => {
+        selectedForecastWindow = Number(windowSelect.value);
+        loadForecastLab(tickerSelect.value, { silent: true });
     });
 }
 
@@ -981,7 +1265,7 @@ function updateNavigationFromScroll() {
     const activationLine = Math.min(220, window.innerHeight * 0.28);
     let activeSection = 'overview';
 
-    ['overview', 'holdings', 'market'].forEach(sectionId => {
+    ['overview', 'holdings', 'market', 'forecast'].forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (section && section.getBoundingClientRect().top <= activationLine) {
             activeSection = sectionId;
@@ -1020,13 +1304,13 @@ function bindSectionNavigation() {
 
     window.addEventListener('hashchange', () => {
         const sectionId = window.location.hash.substring(1);
-        if (['overview', 'holdings', 'market'].includes(sectionId)) {
+        if (['overview', 'holdings', 'market', 'forecast'].includes(sectionId)) {
             setActiveNavigation(sectionId);
         }
     });
 
     const initialSection = window.location.hash.substring(1);
-    if (['overview', 'holdings', 'market'].includes(initialSection)) {
+    if (['overview', 'holdings', 'market', 'forecast'].includes(initialSection)) {
         setActiveNavigation(initialSection);
     } else {
         updateNavigationFromScroll();
@@ -1060,13 +1344,17 @@ function bindGeneralInteractions() {
 async function initialize() {
     initTickerSelect('ticker', 'TSLA');
     initTickerSelect('snapshotTicker', 'TSLA');
+    initTickerSelect('forecastTicker', 'TSLA');
     setPageContext('Investor');
     resetPositionForm();
     bindGeneralInteractions();
     bindPositionForm();
     bindRemoveDialog();
     bindSnapshotControls();
+    bindForecastControls();
     bindSectionNavigation();
+
+    selectedForecastWindow = Number(document.getElementById('forecastWindow').value);
 
     if ('ResizeObserver' in window) {
         const metricObserver = new ResizeObserver(() => fitHeroMetricValues());
@@ -1083,7 +1371,7 @@ async function initialize() {
         removeSkeletons();
         document.getElementById('portfolioTableBody').innerHTML = `
             <tr class="loading-row">
-                <td colspan="7"><span class="table-loading">We could not load your portfolio.</span></td>
+                <td colspan="8"><span class="table-loading">We could not load your portfolio.</span></td>
             </tr>
         `;
         document.getElementById('lastUpdated').innerHTML = '<i class="bi bi-exclamation-circle" aria-hidden="true"></i> Update failed';
@@ -1091,6 +1379,7 @@ async function initialize() {
     }
 
     loadSnapshot('TSLA', { silent: true, resetView: true });
+    loadForecastLab('TSLA', { silent: true });
 }
 
 initialize();
