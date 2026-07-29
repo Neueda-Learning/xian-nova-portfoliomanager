@@ -3,172 +3,367 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfolio Manager</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/style.css" rel="stylesheet">
-
+    <meta name="theme-color" content="#f5f7f4">
+    <title>Portfolio Manager · Overview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
 </head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <span class="navbar-brand">Portfolio Manager</span>
-        <div class="d-flex text-white gap-3 align-items-center">
-            <span id="currentUser"></span>
-            <form method="post" action="/logout">
-                <button class="btn btn-outline-light btn-sm" type="submit">Logout</button>
-            </form>
-        </div>
-    </div>
-</nav>
+<body class="dashboard-page">
+<a class="skip-link" href="#mainContent">Skip to portfolio overview</a>
 
-<div class="container my-4">
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Portfolio Summary</h5>
-                    <div class="metric"><span>Total Cost:</span> <strong id="totalCost">-</strong></div>
-                    <div class="metric"><span>Total Value:</span> <strong id="totalValue">-</strong></div>
-                    <div class="metric"><span>P/L:</span> <strong id="totalPnl">-</strong></div>
-                </div>
+<div class="app-layout">
+    <aside class="sidebar" aria-label="Application sidebar">
+        <a class="brand" href="index.html" aria-label="Portfolio Manager home">
+            <span class="brand-mark" aria-hidden="true">P</span>
+            <span class="brand-copy">
+                <strong>Portfolio</strong>
+                <small>Manager</small>
+            </span>
+        </a>
+
+        <nav class="side-nav" aria-label="Primary navigation">
+            <a class="side-nav-link active" href="#overview" aria-current="location">
+                <i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>
+                <span>Overview</span>
+            </a>
+            <a class="side-nav-link" href="#holdings">
+                <i class="bi bi-briefcase-fill" aria-hidden="true"></i>
+                <span>Holdings</span>
+            </a>
+            <a class="side-nav-link" href="#market">
+                <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+                <span>Market data</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="market-status">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span>
+                    <strong>Market feed</strong>
+                    <small>Connected</small>
+                </span>
+            </div>
+            <div class="account-block">
+                <span class="user-avatar" id="userAvatar" aria-hidden="true">PM</span>
+                <span class="account-copy">
+                    <strong id="sidebarUsername">Account</strong>
+                    <small>Portfolio owner</small>
+                </span>
+                <form method="post" action="/logout">
+                    <button class="icon-button logout-button" type="submit" aria-label="Sign out" title="Sign out">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
             </div>
         </div>
+    </aside>
 
-        <div class="col-md-8">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Allocation</h5>
-                    <div class="allocation-chart-container">
-                        <canvas id="allocationChart"></canvas>
+    <main class="main-content" id="mainContent">
+        <header class="topbar" id="overview">
+            <div>
+                <p class="eyebrow">Portfolio overview</p>
+                <h1><span id="greeting">Welcome back</span>, <span id="currentUser">Investor</span></h1>
+                <p class="topbar-date" id="currentDate">Your financial position at a glance.</p>
+            </div>
+            <div class="topbar-actions">
+                <span class="last-updated" id="lastUpdated">
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    Updating…
+                </span>
+                <button class="primary-button" id="openAddDialog" type="button">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    Add position
+                </button>
+            </div>
+        </header>
+
+        <section class="portfolio-hero" aria-labelledby="portfolioValueLabel">
+            <div class="portfolio-value">
+                <div class="value-heading">
+                    <p id="portfolioValueLabel">Total portfolio value</p>
+                    <span class="privacy-indicator"><i class="bi bi-shield-check" aria-hidden="true"></i> Live value</span>
+                </div>
+                <div class="hero-value skeleton-text" id="totalValue">—</div>
+                <div class="return-line">
+                    <span class="return-badge neutral" id="returnBadge">
+                        <i class="bi bi-dash" aria-hidden="true"></i>
+                        <span id="totalReturn">—</span>
+                    </span>
+                    <span>all-time return</span>
+                </div>
+            </div>
+
+            <div class="hero-metrics">
+                <div class="hero-metric">
+                    <span>Invested capital</span>
+                    <strong class="skeleton-text" id="totalCost">—</strong>
+                </div>
+                <div class="hero-metric">
+                    <span>Net profit / loss</span>
+                    <strong class="skeleton-text" id="totalPnl">—</strong>
+                </div>
+                <div class="hero-metric">
+                    <span>Open positions</span>
+                    <strong class="skeleton-text" id="positionCount">—</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="analytics-grid" aria-label="Portfolio analytics">
+            <article class="surface-card performance-card">
+                <div class="card-heading">
+                    <div>
+                        <p class="card-kicker">Performance</p>
+                        <h2>Cost vs. market value</h2>
+                    </div>
+                    <span class="card-context">By holding</span>
+                </div>
+                <div class="performance-summary" id="performanceSummary">Comparing invested capital with current value.</div>
+                <div class="chart-wrap chart-wrap-performance">
+                    <canvas id="performanceChart" role="img" aria-label="Bar chart comparing the cost and current value of each holding"></canvas>
+                    <div class="chart-empty" id="performanceChartEmpty" hidden>
+                        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                        <strong>No performance data yet</strong>
+                        <span>Add a position to start tracking returns.</span>
                     </div>
                 </div>
+            </article>
+
+            <article class="surface-card allocation-card">
+                <div class="card-heading">
+                    <div>
+                        <p class="card-kicker">Diversification</p>
+                        <h2>Allocation</h2>
+                    </div>
+                    <span class="card-context">Market value</span>
+                </div>
+                <div class="allocation-layout">
+                    <div class="donut-wrap">
+                        <canvas id="allocationChart" role="img" aria-label="Doughnut chart showing portfolio allocation by ticker"></canvas>
+                        <div class="donut-center" aria-hidden="true">
+                            <strong id="allocationCount">0</strong>
+                            <span>assets</span>
+                        </div>
+                    </div>
+                    <div class="allocation-legend" id="allocationLegend" aria-label="Allocation chart legend"></div>
+                </div>
+            </article>
+        </section>
+
+        <section class="surface-card holdings-card" id="holdings" aria-labelledby="holdingsTitle">
+            <div class="card-heading holdings-heading">
+                <div>
+                    <p class="card-kicker">Your portfolio</p>
+                    <h2 id="holdingsTitle">Holdings</h2>
+                </div>
+                <div class="holdings-tools">
+                    <label class="search-field" for="holdingSearch">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <span class="visually-hidden">Search holdings</span>
+                        <input id="holdingSearch" type="search" placeholder="Search ticker" autocomplete="off">
+                    </label>
+                    <label class="filter-field" for="assetFilter">
+                        <span class="visually-hidden">Filter by asset type</span>
+                        <select id="assetFilter">
+                            <option value="ALL">All asset types</option>
+                            <option value="STOCK">Stocks</option>
+                            <option value="BOND">Bonds</option>
+                            <option value="CASH">Cash</option>
+                        </select>
+                    </label>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5 class="card-title">Add Portfolio Item</h5>
-            <form id="addItemForm" class="row g-3">
-                <div class="col-md-2">
-                    <label class="form-label" for="ticker">Ticker</label>
-                    <select class="form-select" id="ticker" required></select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="assetType">Asset Type</label>
-                    <select class="form-select" id="assetType" required>
-                        <option value="STOCK">STOCK</option>
-                        <option value="BOND">BOND</option>
-                        <option value="CASH">CASH</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="quantity">Quantity</label>
-                    <input class="form-control" id="quantity" type="number" min="0.0001" step="0.0001" required>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="buyPrice">Buy Price</label>
-                    <input class="form-control" id="buyPrice" type="number" min="0" step="0.01" required>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="purchaseDate">Purchase Date</label>
-                    <input class="form-control" id="purchaseDate" type="date" required>
-                </div>
-                <div class="col-md-2 d-grid align-self-end">
-                    <button class="btn btn-primary" type="submit">Add</button>
-                </div>
-            </form>
-            <div id="formMessage" class="small mt-2"></div>
-        </div>
-    </div>
-
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5 class="card-title">Holdings</h5>
-            <div class="small text-muted mb-2">Tip: click "Edit" to update an existing item.</div>
-            <div class="table-responsive">
-                <table class="table table-striped align-middle">
+            <div class="table-scroller">
+                <table class="holdings-table">
                     <thead>
                     <tr>
-                        <th>Ticker</th>
-                        <th>Type</th>
-                        <th>Quantity</th>
-                        <th>Buy Price</th>
-                        <th>Purchase Date</th>
-                        <th>Current Price</th>
-                        <th>Current Value</th>
-                        <th>P/L</th>
-                        <th></th>
+                        <th scope="col">Asset</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Avg. price</th>
+                        <th scope="col">Market price</th>
+                        <th scope="col">Market value</th>
+                        <th scope="col">Return</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
                     </tr>
                     </thead>
-                    <tbody id="portfolioTableBody"></tbody>
+                    <tbody id="portfolioTableBody">
+                    <tr class="loading-row">
+                        <td colspan="7">
+                            <span class="table-loading"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Loading your holdings…</span>
+                        </td>
+                    </tr>
+                    </tbody>
                 </table>
             </div>
-        </div>
-    </div>
 
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5 class="card-title">Live Price Snapshot</h5>
-            <form id="snapshotForm" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label" for="snapshotTicker">Ticker</label>
-                    <select class="form-select" id="snapshotTicker" required></select>
+            <div class="empty-state" id="holdingsEmpty" hidden>
+                <span class="empty-icon"><i class="bi bi-briefcase" aria-hidden="true"></i></span>
+                <h3 id="emptyStateTitle">Build your first portfolio</h3>
+                <p id="emptyStateCopy">Add a position and Portfolio Manager will track its value and performance.</p>
+                <button class="secondary-button" id="emptyAddButton" type="button">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    Add a position
+                </button>
+            </div>
+
+            <footer class="holdings-footer">
+                <span id="holdingsCount">0 holdings</span>
+                <span>Total market value <strong id="holdingsTotal">—</strong></span>
+            </footer>
+        </section>
+
+        <section class="surface-card market-card" id="market" aria-labelledby="marketTitle">
+            <div class="card-heading market-heading">
+                <div>
+                    <p class="card-kicker">Market explorer</p>
+                    <h2 id="marketTitle">Live price snapshot</h2>
                 </div>
-                <div class="col-md-2 d-grid align-self-end">
-                    <button class="btn btn-outline-primary" type="submit">Refresh Live</button>
+                <form class="snapshot-controls" id="snapshotForm">
+                    <label for="snapshotTicker">
+                        <span class="visually-hidden">Ticker</span>
+                        <select id="snapshotTicker" required></select>
+                    </label>
+                    <button class="secondary-button" id="refreshSnapshotButton" type="submit">
+                        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                        Refresh
+                    </button>
+                </form>
+            </div>
+
+            <div class="market-body">
+                <div class="quote-panel">
+                    <div class="quote-topline">
+                        <span class="ticker-mark" id="snapshotTickerMark">—</span>
+                        <span class="quote-ticker" id="snapshotTickerValue">Select a ticker</span>
+                    </div>
+                    <strong class="quote-price" id="snapshotPriceValue">—</strong>
+                    <div class="quote-change neutral" id="snapshotDayChange">Refresh to view live data</div>
+                    <div class="quote-range">
+                        <span><small>Period low</small><strong id="snapshotPeriodLow">—</strong></span>
+                        <span><small>Period high</small><strong id="snapshotPeriodHigh">—</strong></span>
+                    </div>
+                    <p class="quote-time">Last fetched <span id="snapshotFetchedAtValue">—</span></p>
                 </div>
-                <div class="col-md-4 align-self-end">
-                    <div class="btn-group w-100" role="group" aria-label="Snapshot window selector">
-                        <button class="btn btn-outline-secondary active" type="button" data-window="30">30D</button>
-                        <button class="btn btn-outline-secondary" type="button" data-window="90">90D</button>
-                        <button class="btn btn-outline-secondary" type="button" data-window="252">1Y</button>
+
+                <div class="market-chart-panel">
+                    <div class="chart-toolbar">
+                        <div>
+                            <span>Price history</span>
+                            <small id="snapshotMessage">Choose a period to explore the trend.</small>
+                        </div>
+                        <div class="period-selector" aria-label="Price history period">
+                            <button class="active" type="button" data-window="30" aria-pressed="true">30D</button>
+                            <button type="button" data-window="90" aria-pressed="false">90D</button>
+                            <button type="button" data-window="252" aria-pressed="false">1Y</button>
+                        </div>
+                    </div>
+                    <div class="snapshot-chart-wrap">
+                        <canvas id="snapshotChart" role="img" aria-label="Line chart showing historical prices for the selected ticker"></canvas>
+                        <div class="chart-placeholder" id="snapshotPlaceholder">
+                            <i class="bi bi-activity" aria-hidden="true"></i>
+                            <span>Live price history will appear here</span>
+                        </div>
                     </div>
                 </div>
-            </form>
-            <div id="snapshotMessage" class="small mt-2"></div>
-            <div class="row mt-3 g-3">
-                <div class="col-md-3">
-                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Prev Close</div><div id="snapshotPrevClose" class="fw-semibold">-</div></div></div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Day Change</div><div id="snapshotDayChange" class="fw-semibold">-</div></div></div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Period High</div><div id="snapshotPeriodHigh" class="fw-semibold">-</div></div></div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 bg-light h-100"><div class="card-body p-3"><div class="small text-muted">Period Low</div><div id="snapshotPeriodLow" class="fw-semibold">-</div></div></div>
+
+                <div class="market-stats" aria-label="Snapshot statistics">
+                    <div class="market-stat"><span>Previous close</span><strong id="snapshotPrevClose">—</strong></div>
+                    <div class="market-stat"><span>Period return</span><strong id="snapshotPeriodReturn">—</strong></div>
+                    <div class="market-stat"><span>Average close</span><strong id="snapshotAvgClose">—</strong></div>
+                    <div class="market-stat"><span>Daily volatility</span><strong id="snapshotVolatility">—</strong></div>
+                    <div class="market-stat"><span>Average volume</span><strong id="snapshotAvgVolume">—</strong></div>
+                    <div class="market-stat"><span>Latest volume</span><strong id="snapshotLatestVolume">—</strong></div>
                 </div>
             </div>
-            <div class="table-responsive mt-3">
-                <table class="table table-sm">
-                    <tbody>
-                    <tr><th scope="row">Average Close</th><td id="snapshotAvgClose">-</td></tr>
-                    <tr><th scope="row">Period Return</th><td id="snapshotPeriodReturn">-</td></tr>
-                    <tr><th scope="row">Volatility (Daily Return StdDev)</th><td id="snapshotVolatility">-</td></tr>
-                    <tr><th scope="row">Average Volume</th><td id="snapshotAvgVolume">-</td></tr>
-                    <tr><th scope="row">Latest Volume</th><td id="snapshotLatestVolume">-</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-2">
-                <canvas id="snapshotChart" height="110"></canvas>
-            </div>
-            <div class="table-responsive mt-3">
-                <table class="table table-sm">
-                    <tbody>
-                    <tr><th scope="row">Ticker</th><td id="snapshotTickerValue">-</td></tr>
-                    <tr><th scope="row">Latest Price</th><td id="snapshotPriceValue">-</td></tr>
-                    <tr><th scope="row">Fetched At</th><td id="snapshotFetchedAtValue">-</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+        </section>
+
+        <footer class="page-footer">
+            <span>Portfolio Manager</span>
+            <span>Values update from the latest available market data.</span>
+        </footer>
+    </main>
 </div>
-<!-- JavaScript -->
+
+<dialog class="app-dialog" id="positionDialog" aria-labelledby="positionDialogTitle">
+    <form id="addItemForm">
+        <div class="dialog-header">
+            <div>
+                <p class="card-kicker">Portfolio position</p>
+                <h2 id="positionDialogTitle">Add a new position</h2>
+            </div>
+            <button class="icon-button" type="button" data-close-dialog="positionDialog" aria-label="Close dialog">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p class="dialog-intro">Enter your trade details. The latest market price will be applied automatically.</p>
+            <div class="form-grid">
+                <label class="form-field" for="ticker">
+                    <span>Ticker</span>
+                    <select id="ticker" required></select>
+                </label>
+                <label class="form-field" for="assetType">
+                    <span>Asset type</span>
+                    <select id="assetType" required>
+                        <option value="STOCK">Stock</option>
+                        <option value="BOND">Bond</option>
+                        <option value="CASH">Cash</option>
+                    </select>
+                </label>
+                <label class="form-field" for="quantity">
+                    <span>Quantity</span>
+                    <input id="quantity" type="number" inputmode="decimal" min="0.0001" step="0.0001" placeholder="0.0000" required>
+                </label>
+                <label class="form-field" for="buyPrice">
+                    <span>Average buy price</span>
+                    <span class="input-with-prefix">
+                        <span aria-hidden="true">$</span>
+                        <input id="buyPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+                    </span>
+                </label>
+                <label class="form-field form-field-wide" for="purchaseDate">
+                    <span>Purchase date</span>
+                    <input id="purchaseDate" type="date" required>
+                </label>
+            </div>
+            <div class="form-message" id="formMessage" role="status" aria-live="polite"></div>
+        </div>
+        <div class="dialog-footer">
+            <button class="text-button" type="button" data-close-dialog="positionDialog">Cancel</button>
+            <button class="primary-button" id="savePositionButton" type="submit">
+                <span id="savePositionLabel">Add position</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<dialog class="app-dialog confirm-dialog" id="removeDialog" aria-labelledby="removeDialogTitle">
+    <div class="dialog-header">
+        <span class="danger-icon"><i class="bi bi-trash3" aria-hidden="true"></i></span>
+        <button class="icon-button" type="button" data-close-dialog="removeDialog" aria-label="Close dialog">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div class="dialog-body">
+        <h2 id="removeDialogTitle">Remove this position?</h2>
+        <p>Removing <strong id="removeTicker">this holding</strong> will permanently remove it from your portfolio.</p>
+    </div>
+    <div class="dialog-footer">
+        <button class="text-button" type="button" data-close-dialog="removeDialog">Keep position</button>
+        <button class="danger-button" id="confirmRemoveButton" type="button">Remove position</button>
+    </div>
+</dialog>
+
+<div class="toast-region" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="/js/api.js"></script>
-<script src="/js/dashboard.js"></script>
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
 </body>
+</html>
