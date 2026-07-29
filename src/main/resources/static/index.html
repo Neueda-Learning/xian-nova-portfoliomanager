@@ -37,6 +37,10 @@
                 <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
                 <span>Market data</span>
             </a>
+            <a class="side-nav-link" href="#forecast">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>Forecast lab</span>
+            </a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -188,12 +192,13 @@
                         <th scope="col">Market price</th>
                         <th scope="col">Market value</th>
                         <th scope="col">Return</th>
+                        <th scope="col">Tomorrow P/L</th>
                         <th scope="col"><span class="visually-hidden">Actions</span></th>
                     </tr>
                     </thead>
                     <tbody id="portfolioTableBody">
                     <tr class="loading-row">
-                        <td colspan="7">
+                        <td colspan="8">
                             <span class="table-loading"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Loading your holdings…</span>
                         </td>
                     </tr>
@@ -280,6 +285,50 @@
                     <div class="market-stat"><span>Latest volume</span><strong id="snapshotLatestVolume">—</strong></div>
                 </div>
             </div>
+        </section>
+
+        <section class="surface-card forecast-card" id="forecast" aria-labelledby="forecastTitle">
+            <div class="card-heading market-heading">
+                <div>
+                    <p class="card-kicker">Strategy lab</p>
+                    <h2 id="forecastTitle">Model forecast curve</h2>
+                </div>
+                <form class="snapshot-controls forecast-controls" id="forecastForm">
+                    <label for="forecastTicker">
+                        <span class="visually-hidden">Forecast ticker</span>
+                        <select id="forecastTicker" required></select>
+                    </label>
+                    <label for="forecastWindow">
+                        <span class="visually-hidden">Forecast history window</span>
+                        <select id="forecastWindow">
+                            <option value="30">30D</option>
+                            <option value="90" selected>90D</option>
+                            <option value="252">1Y</option>
+                        </select>
+                    </label>
+                    <button class="secondary-button" id="refreshForecastButton" type="submit">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                        Run
+                    </button>
+                </form>
+            </div>
+            <div class="forecast-body">
+                <div class="snapshot-chart-wrap forecast-chart-wrap">
+                    <canvas id="forecastChart" role="img" aria-label="Line chart comparing historical close with next-day forecast"></canvas>
+                    <div class="chart-placeholder" id="forecastPlaceholder">
+                        <i class="bi bi-stars" aria-hidden="true"></i>
+                        <span>Run forecast to visualize model output</span>
+                    </div>
+                </div>
+                <div class="market-stats forecast-stats" aria-label="Forecast statistics">
+                    <div class="market-stat"><span>Model</span><strong id="forecastModelName">—</strong></div>
+                    <div class="market-stat"><span>Latest close</span><strong id="forecastLatestClose">—</strong></div>
+                    <div class="market-stat"><span>Predicted next close</span><strong id="forecastNextClose">—</strong></div>
+                    <div class="market-stat"><span>Predicted change</span><strong id="forecastNextChange">—</strong></div>
+                    <div class="market-stat"><span>Smoothing</span><strong id="forecastSmoothMode">—</strong></div>
+                </div>
+            </div>
+            <div class="forecast-message" id="forecastMessage">Choose model and ticker to evaluate forecast reliability.</div>
         </section>
 
         <footer class="page-footer">

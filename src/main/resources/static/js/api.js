@@ -68,6 +68,14 @@ const portfolioApi = (() => {
 
         fetchLiveSnapshot(ticker, signal) {
             return request(`/api/price-snapshots/${encodeURIComponent(ticker)}/live`, { signal });
+        },
+
+        fetchForecast(ticker, window = 30, model = 'WMA', signal) {
+            const params = new URLSearchParams({
+                model,
+                window: String(window)
+            });
+            return request(`/api/price-snapshots/${encodeURIComponent(ticker)}/forecast?${params.toString()}`, { signal });
         }
     };
 })();
