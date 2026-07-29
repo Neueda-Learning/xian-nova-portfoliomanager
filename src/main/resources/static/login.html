@@ -3,32 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portfolio Manager - Login</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="theme-color" content="#11221b">
+  <title>Sign in · Portfolio Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-4">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h4 class="mb-3 text-center">Portfolio Manager</h4>
-          <p class="text-muted small text-center"></p>
-          <form method="post" action="/login">
-            <div class="mb-3">
-              <label for="username" class="form-label">Username</label>
-              <input id="username" name="username" class="form-control" required>
-            </div>
-            <div class="mb-3">
-              <label for="password" class="form-label">Password</label>
-              <input id="password" name="password" type="password" class="form-control" required>
-            </div>
-            <button class="btn btn-primary w-100" type="submit">Sign in</button>
-          </form>
-        </div>
+<body class="login-page">
+<main class="login-shell">
+  <section class="login-showcase" aria-label="Portfolio Manager introduction">
+    <a class="brand brand-light" href="login.html" aria-label="Portfolio Manager sign in">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span class="brand-copy">
+                <strong>Portfolio</strong>
+                <small>Manager</small>
+            </span>
+    </a>
+
+    <div class="showcase-copy">
+      <p class="showcase-kicker">YOUR WEALTH, IN FOCUS</p>
+      <h1>Clarity for every position.</h1>
+      <p>Understand what you own, how it is performing, and where your portfolio is heading—all in one calm workspace.</p>
+    </div>
+
+    <div class="showcase-preview" aria-hidden="true">
+      <div class="preview-topline">
+        <span>Portfolio value</span>
+        <span class="preview-live"><i class="bi bi-circle-fill"></i> Live</span>
+      </div>
+      <strong>$128,420.60</strong>
+      <div class="preview-return"><i class="bi bi-arrow-up-right"></i> 12.8% all time</div>
+      <div class="preview-chart">
+        <span style="height: 34%"></span>
+        <span style="height: 46%"></span>
+        <span style="height: 41%"></span>
+        <span style="height: 58%"></span>
+        <span style="height: 54%"></span>
+        <span style="height: 72%"></span>
+        <span style="height: 68%"></span>
+        <span style="height: 84%"></span>
+        <span style="height: 92%"></span>
+      </div>
+      <div class="preview-holdings">
+        <span>AAPL</span><span>AMZN</span><span>TSLA</span>
       </div>
     </div>
-  </div>
-</div>
+
+    <p class="showcase-footer">A focused portfolio experience, built for better decisions.</p>
+  </section>
+
+  <section class="login-panel">
+    <a class="brand login-mobile-brand" href="login.html" aria-label="Portfolio Manager sign in">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span class="brand-copy">
+                <strong>Portfolio</strong>
+                <small>Manager</small>
+            </span>
+    </a>
+
+    <div class="login-form-wrap">
+      <div class="login-heading">
+        <p class="eyebrow">Secure access</p>
+        <h2>Welcome back</h2>
+        <p>Sign in to view and manage your portfolio.</p>
+      </div>
+
+      <div class="login-notice" id="loginNotice" role="status" hidden></div>
+
+      <form class="login-form" method="post" action="/login">
+        <label class="form-field" for="username">
+          <span>Username</span>
+          <span class="login-input">
+                        <i class="bi bi-person" aria-hidden="true"></i>
+                        <input id="username" name="username" autocomplete="username" placeholder="Enter your username" required autofocus>
+                    </span>
+        </label>
+
+        <label class="form-field" for="password">
+          <span>Password</span>
+          <span class="login-input">
+                        <i class="bi bi-lock" aria-hidden="true"></i>
+                        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+                        <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+        </label>
+
+        <button class="primary-button login-submit" type="submit">
+          Sign in
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </button>
+      </form>
+
+      <div class="demo-access">
+        <span class="demo-icon"><i class="bi bi-key" aria-hidden="true"></i></span>
+        <span>
+                    <strong>Demo access</strong>
+                    <small>Username <code>admin</code> · Password <code>admin123</code></small>
+                </span>
+      </div>
+    </div>
+
+    <p class="login-footer"><i class="bi bi-shield-check" aria-hidden="true"></i> Your session is protected by secure authentication.</p>
+  </section>
+</main>
+
+<script>
+  (() => {
+    const params = new URLSearchParams(window.location.search);
+    const notice = document.getElementById('loginNotice');
+    if (params.has('error')) {
+      notice.textContent = 'The username or password is incorrect. Please try again.';
+      notice.className = 'login-notice error';
+      notice.hidden = false;
+    } else if (params.has('logout')) {
+      notice.textContent = 'You have been signed out successfully.';
+      notice.className = 'login-notice success';
+      notice.hidden = false;
+    }
+
+    const toggle = document.getElementById('passwordToggle');
+    const password = document.getElementById('password');
+    toggle.addEventListener('click', () => {
+      const showing = password.type === 'text';
+      password.type = showing ? 'password' : 'text';
+      toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      toggle.querySelector('i').className = showing ? 'bi bi-eye' : 'bi bi-eye-slash';
+    });
+  })();
+</script>
 </body>
 </html>
