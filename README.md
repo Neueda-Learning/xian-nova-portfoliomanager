@@ -81,7 +81,7 @@ Windows:
 .\mvnw.cmd spring-boot:run
 ```
 
-Open [http://localhost:6300](http://localhost:6300).
+Open [http://localhost:9000](http://localhost:9000).
 
 Demo credentials:
 
@@ -141,6 +141,7 @@ src/
 ## Project documentation
 
 - [Project timeline](docs/ProjectTimeline.md)
-- [Trello board](docs/TRELLO_BOARD.md)
+- [Trello board](docs/TrelloBoard.png)
+- [Git Graph](docs/GitGraph.png)
 - [Team presentation slides](docs/presentation/Portfolio-Manager-Team-Presentation.pptx)
 
