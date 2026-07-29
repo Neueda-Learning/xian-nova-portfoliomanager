@@ -57,25 +57,34 @@ public class PortfolioService {
 
     public long addItemForCurrentUser(AddPortfolioItemRequest request) {
         User user = currentUserService.getCurrentUser();
+        String ticker = normalizeTicker(request.ticker());
         PortfolioItem item = new PortfolioItem();
         item.setUserId(user.getId());
-        item.setTicker(normalizeTicker(request.ticker()));
+        item.setTicker(ticker);
         item.setAssetType(request.assetType());
         item.setQuantity(request.quantity());
-        item.setBuyPrice(request.buyPrice());
+        item.setBuyPrice(resolveEntryPrice(ticker, request.purchaseDate()));
         item.setPurchaseDate(request.purchaseDate());
         return itemRepository.save(item);
     }
 
     public void updateItemForCurrentUser(Long id, AddPortfolioItemRequest request) {
         User user = currentUserService.getCurrentUser();
+        String ticker = normalizeTicker(request.ticker());
+        PortfolioItem existing = itemRepository.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Portfolio item not found"));
+
+        BigDecimal buyPrice = shouldRefreshEntryPrice(existing, ticker, request.purchaseDate())
+                ? resolveEntryPrice(ticker, request.purchaseDate())
+                : existing.getBuyPrice();
+
         PortfolioItem item = new PortfolioItem();
         item.setId(id);
         item.setUserId(user.getId());
-        item.setTicker(normalizeTicker(request.ticker()));
+        item.setTicker(ticker);
         item.setAssetType(request.assetType());
         item.setQuantity(request.quantity());
-        item.setBuyPrice(request.buyPrice());
+        item.setBuyPrice(buyPrice);
         item.setPurchaseDate(request.purchaseDate());
 
         int rows = itemRepository.updateByIdAndUserId(item);
@@ -130,6 +139,19 @@ public class PortfolioService {
             return price;
         }
         return item.getBuyPrice();
+    }
+
+    private BigDecimal resolveEntryPrice(String ticker, java.time.LocalDate purchaseDate) {
+        BigDecimal resolvedPrice = priceClientService.getPriceForDate(ticker, purchaseDate);
+        if (resolvedPrice == null || resolvedPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Unable to fetch current market price for ticker: " + ticker);
+        }
+        return resolvedPrice;
+    }
+
+    private boolean shouldRefreshEntryPrice(PortfolioItem existing, String ticker, java.time.LocalDate purchaseDate) {
+        return !Objects.equals(existing.getTicker(), ticker)
+                || !Objects.equals(existing.getPurchaseDate(), purchaseDate);
     }
 
     private String normalizeTicker(String ticker) {

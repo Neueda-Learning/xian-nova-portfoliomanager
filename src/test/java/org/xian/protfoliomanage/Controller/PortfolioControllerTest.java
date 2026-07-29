@@ -53,7 +53,7 @@ class PortfolioControllerTest {
     @Test
     void addItemReturnsCreatedPayload() {
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "AAPL", AssetType.STOCK, new BigDecimal("1"), new BigDecimal("100"), LocalDate.now()
+                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
         );
         when(portfolioService.addItemForCurrentUser(request)).thenReturn(22L);
 
@@ -67,7 +67,7 @@ class PortfolioControllerTest {
     @Test
     void updateItemReturnsOkPayload() {
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "AAPL", AssetType.STOCK, new BigDecimal("1"), new BigDecimal("100"), LocalDate.now()
+                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
         );
 
         ResponseEntity<Map<String, Object>> response = controller.updateItem(9L, request);

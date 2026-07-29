@@ -12,7 +12,6 @@ public record AddPortfolioItemRequest(
         @NotBlank String ticker,
         @NotNull AssetType assetType,
         @NotNull @DecimalMin(value = "0.0001") BigDecimal quantity,
-        @NotNull @DecimalMin(value = "0.0") BigDecimal buyPrice,
         @NotNull LocalDate purchaseDate
 ) {
 }

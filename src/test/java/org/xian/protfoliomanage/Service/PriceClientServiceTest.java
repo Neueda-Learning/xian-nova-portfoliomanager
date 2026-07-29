@@ -7,6 +7,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -87,6 +88,36 @@ class PriceClientServiceTest {
         PriceClientService.PriceQuote quote = service.fetchLatestQuote("FAIL");
 
         assertNull(quote);
+        server.verify();
+    }
+
+    @Test
+    void getPriceForDateReturnsHistoricalCloseByPurchaseDate() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PriceClientService service = new PriceClientService(builder, new ObjectMapper(), "http://localhost");
+
+        server.expect(requestTo("http://localhost?ticker=AAPL"))
+                .andRespond(withSuccess("{\"price_data\":{\"close\":[10.00,11.00,12.00,13.00]}}", MediaType.APPLICATION_JSON));
+
+        BigDecimal price = service.getPriceForDate("AAPL", LocalDate.now().minusDays(2));
+
+        assertEquals(0, new BigDecimal("11.00").compareTo(price));
+        server.verify();
+    }
+
+    @Test
+    void getPriceForDateUsesLatestWhenPurchaseDateIsTodayOrLater() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PriceClientService service = new PriceClientService(builder, new ObjectMapper(), "http://localhost");
+
+        server.expect(requestTo("http://localhost?ticker=TSLA"))
+                .andRespond(withSuccess("{\"close\":[200.00,220.00]}\n", MediaType.APPLICATION_JSON));
+
+        BigDecimal price = service.getPriceForDate("TSLA", LocalDate.now().plusDays(1));
+
+        assertEquals(0, new BigDecimal("220.00").compareTo(price));
         server.verify();
     }
 }
