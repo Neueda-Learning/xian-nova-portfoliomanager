@@ -25,13 +25,16 @@ let selectedForecastWindow = 90;
 
 const holdingsForecastByTicker = new Map();
 
-const SUPPORTED_TICKERS = ['C', 'AMZN', 'TSLA', 'FB', 'AAPL'];
+const STOCK_TICKERS = ['C', 'AMZN', 'TSLA', 'FB', 'AAPL'];
+const POSITION_TICKERS = [...STOCK_TICKERS, 'BOND', 'CASH'];
 const ASSET_NAMES = {
     C: 'Citigroup',
     AMZN: 'Amazon',
     TSLA: 'Tesla',
     FB: 'Meta Platforms',
-    AAPL: 'Apple'
+    AAPL: 'Apple',
+    BOND: 'Bond asset',
+    CASH: 'Cash position'
 };
 const CHART_COLORS = ['#2b5a43', '#b9db73', '#e8a45c', '#829c8c', '#c7b88d', '#79a7a0', '#a18bad'];
 
@@ -180,10 +183,10 @@ function markUpdated() {
     node.innerHTML = '<i class="bi bi-check2-circle" aria-hidden="true"></i> Updated just now';
 }
 
-function initTickerSelect(selectId, defaultValue) {
+function initTickerSelect(selectId, defaultValue, tickers = STOCK_TICKERS) {
     const select = document.getElementById(selectId);
     select.innerHTML = '';
-    SUPPORTED_TICKERS.forEach(ticker => {
+    tickers.forEach(ticker => {
         const option = document.createElement('option');
         option.value = ticker;
         option.textContent = ticker;
@@ -597,6 +600,47 @@ function renderDashboard(items, summary) {
     markUpdated();
 }
 
+function isManualPriceAsset(assetType) {
+    return assetType === 'CASH' || assetType === 'BOND';
+}
+
+function syncManualPriceField(assetType) {
+    const container = document.getElementById('manualPriceContainer');
+    const input = document.getElementById('manualPriceField');
+    const requiresManualPrice = isManualPriceAsset(assetType);
+    container.hidden = !requiresManualPrice;
+    input.required = requiresManualPrice;
+    if (!requiresManualPrice) {
+        input.value = '';
+    }
+}
+
+function syncAssetTypeFromTicker() {
+    const ticker = String(document.getElementById('ticker').value || '').toUpperCase();
+    const assetTypeSelect = document.getElementById('assetType');
+
+    if (STOCK_TICKERS.includes(ticker)) {
+        assetTypeSelect.value = 'STOCK';
+        assetTypeSelect.disabled = true;
+        syncManualPriceField('STOCK');
+        return;
+    }
+
+    if (ticker === 'BOND' || ticker === 'CASH') {
+        assetTypeSelect.value = ticker;
+        assetTypeSelect.disabled = true;
+        syncManualPriceField(ticker);
+        return;
+    }
+
+    const wasLocked = assetTypeSelect.disabled;
+    assetTypeSelect.disabled = false;
+    if (wasLocked && isManualPriceAsset(assetTypeSelect.value)) {
+        assetTypeSelect.value = 'STOCK';
+    }
+    syncManualPriceField(assetTypeSelect.value);
+}
+
 function resetPositionForm() {
     editingItemId = null;
     const form = document.getElementById('addItemForm');
@@ -608,6 +652,8 @@ function resetPositionForm() {
     document.getElementById('purchaseDate').value = new Date().toISOString().substring(0, 10);
     document.getElementById('ticker').value = 'TSLA';
     document.getElementById('assetType').value = 'STOCK';
+    document.getElementById('manualPriceField').value = '';
+    syncAssetTypeFromTicker();
 }
 
 function openAddDialog() {
@@ -624,6 +670,8 @@ function openEditDialog(item) {
     document.getElementById('assetType').value = item.assetType;
     document.getElementById('quantity').value = item.quantity;
     document.getElementById('purchaseDate').value = toDateInputValue(item.purchaseDate);
+    document.getElementById('manualPriceField').value = isManualPriceAsset(item.assetType) ? item.buyPrice : '';
+    syncAssetTypeFromTicker();
     document.getElementById('positionDialogTitle').textContent = `Edit ${item.ticker} position`;
     document.getElementById('savePositionLabel').textContent = 'Save changes';
     document.getElementById('positionDialog').showModal();
@@ -699,11 +747,15 @@ function bindPositionForm() {
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
+        const assetType = document.getElementById('assetType').value;
+        const manualPriceInput = document.getElementById('manualPriceField').value;
+        const manualPrice = manualPriceInput === '' ? null : Number(manualPriceInput);
         const payload = {
             ticker: document.getElementById('ticker').value,
-            assetType: document.getElementById('assetType').value,
+            assetType,
             quantity: Number(document.getElementById('quantity').value),
-            purchaseDate: document.getElementById('purchaseDate').value
+            purchaseDate: document.getElementById('purchaseDate').value,
+            manualPrice: isManualPriceAsset(assetType) ? manualPrice : null
         };
         const isEditing = editingItemId !== null;
 
@@ -1322,6 +1374,12 @@ function bindGeneralInteractions() {
     document.getElementById('emptyAddButton').addEventListener('click', openAddDialog);
     document.getElementById('holdingSearch').addEventListener('input', renderTable);
     document.getElementById('assetFilter').addEventListener('change', renderTable);
+    document.getElementById('ticker').addEventListener('change', () => {
+        syncAssetTypeFromTicker();
+    });
+    document.getElementById('assetType').addEventListener('change', event => {
+        syncManualPriceField(event.target.value);
+    });
 
     document.querySelectorAll('[data-close-dialog]').forEach(button => {
         button.addEventListener('click', () => closeDialog(button.dataset.closeDialog));
@@ -1342,9 +1400,9 @@ function bindGeneralInteractions() {
 }
 
 async function initialize() {
-    initTickerSelect('ticker', 'TSLA');
-    initTickerSelect('snapshotTicker', 'TSLA');
-    initTickerSelect('forecastTicker', 'TSLA');
+    initTickerSelect('ticker', 'TSLA', POSITION_TICKERS);
+    initTickerSelect('snapshotTicker', 'TSLA', STOCK_TICKERS);
+    initTickerSelect('forecastTicker', 'TSLA', STOCK_TICKERS);
     setPageContext('Investor');
     resetPositionForm();
     bindGeneralInteractions();

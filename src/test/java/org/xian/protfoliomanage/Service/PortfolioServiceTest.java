@@ -44,7 +44,6 @@ class PortfolioServiceTest {
         when(itemRepository.findByUserId(7L)).thenReturn(List.of(first, second));
 
         when(priceClientService.getCurrentPrice("AAPL")).thenReturn(new BigDecimal("110.125"));
-        when(priceClientService.getCurrentPrice("CASH")).thenReturn(BigDecimal.ZERO);
 
         List<PortfolioItemResponse> responses = service.getItemsForCurrentUser();
 
@@ -55,6 +54,7 @@ class PortfolioServiceTest {
 
         assertEquals(new BigDecimal("1.00"), responses.get(1).currentPrice());
         assertEquals(new BigDecimal("3.00"), responses.get(1).currentValue());
+        verify(priceClientService, never()).getCurrentPrice("CASH");
     }
 
     @Test
@@ -69,7 +69,8 @@ class PortfolioServiceTest {
                 "  msft ",
                 AssetType.STOCK,
                 new BigDecimal("5"),
-                purchaseDate
+                purchaseDate,
+                null
         );
 
         long id = service.addItemForCurrentUser(request);
@@ -92,7 +93,7 @@ class PortfolioServiceTest {
         when(itemRepository.updateByIdAndUserId(any(PortfolioItem.class))).thenReturn(0);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "aapl", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
+                "aapl", AssetType.STOCK, new BigDecimal("1"), LocalDate.now(), null
         );
 
         IllegalArgumentException ex = assertThrows(
@@ -115,7 +116,7 @@ class PortfolioServiceTest {
         when(itemRepository.updateByIdAndUserId(any(PortfolioItem.class))).thenReturn(1);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "AAPL", AssetType.STOCK, new BigDecimal("2"), purchaseDate
+                "AAPL", AssetType.STOCK, new BigDecimal("2"), purchaseDate, null
         );
 
         service.updateItemForCurrentUser(9L, request);
@@ -123,6 +124,29 @@ class PortfolioServiceTest {
         ArgumentCaptor<PortfolioItem> captor = ArgumentCaptor.forClass(PortfolioItem.class);
         verify(itemRepository).updateByIdAndUserId(captor.capture());
         assertEquals(new BigDecimal("105.50"), captor.getValue().getBuyPrice());
+        verify(priceClientService, never()).getPriceForDate(any(), any());
+    }
+
+    @Test
+    void updateItemForCurrentUserUsesManualPriceForBond() {
+        User user = new User(7L, "bob", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+
+        LocalDate purchaseDate = LocalDate.parse("2026-01-01");
+        PortfolioItem existing = new PortfolioItem(11L, 7L, "USBOND", AssetType.BOND,
+                new BigDecimal("1"), new BigDecimal("99.10"), purchaseDate);
+        when(itemRepository.findByIdAndUserId(11L, 7L)).thenReturn(Optional.of(existing));
+        when(itemRepository.updateByIdAndUserId(any(PortfolioItem.class))).thenReturn(1);
+
+        AddPortfolioItemRequest request = new AddPortfolioItemRequest(
+                "USBOND", AssetType.BOND, new BigDecimal("2"), purchaseDate, new BigDecimal("100.50")
+        );
+
+        service.updateItemForCurrentUser(11L, request);
+
+        ArgumentCaptor<PortfolioItem> captor = ArgumentCaptor.forClass(PortfolioItem.class);
+        verify(itemRepository).updateByIdAndUserId(captor.capture());
+        assertEquals(new BigDecimal("100.50"), captor.getValue().getBuyPrice());
         verify(priceClientService, never()).getPriceForDate(any(), any());
     }
 
@@ -152,15 +176,14 @@ class PortfolioServiceTest {
         when(itemRepository.findByUserId(10L)).thenReturn(List.of(aapl, bond));
 
         when(priceClientService.getCurrentPrice("AAPL")).thenReturn(new BigDecimal("150"));
-        when(priceClientService.getCurrentPrice("BONDX")).thenReturn(new BigDecimal("12"));
 
         PortfolioSummaryResponse summary = service.getSummaryForCurrentUser();
 
         assertEquals(new BigDecimal("230.00"), summary.totalCost());
-        assertEquals(new BigDecimal("336.00"), summary.totalMarketValue());
-        assertEquals(new BigDecimal("106.00"), summary.totalProfitLoss());
-        assertEquals(new BigDecimal("89.29"), summary.allocationPercentages().get("AAPL"));
-        assertEquals(new BigDecimal("10.71"), summary.allocationPercentages().get("BONDX"));
+        assertEquals(new BigDecimal("330.00"), summary.totalMarketValue());
+        assertEquals(new BigDecimal("100.00"), summary.totalProfitLoss());
+        assertEquals(new BigDecimal("90.91"), summary.allocationPercentages().get("AAPL"));
+        assertEquals(new BigDecimal("9.09"), summary.allocationPercentages().get("BONDX"));
     }
 
     @Test
@@ -169,7 +192,7 @@ class PortfolioServiceTest {
         when(currentUserService.getCurrentUser()).thenReturn(user);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "   ", AssetType.STOCK, new BigDecimal("5"), LocalDate.now()
+                "   ", AssetType.STOCK, new BigDecimal("5"), LocalDate.now(), null
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
@@ -185,13 +208,66 @@ class PortfolioServiceTest {
         when(priceClientService.getPriceForDate(eq("AAPL"), any())).thenReturn(null);
 
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.now()
+                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.now(), null
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> service.addItemForCurrentUser(request));
 
         assertEquals("Unable to fetch current market price for ticker: AAPL", ex.getMessage());
+    }
+
+    @Test
+    void addItemForCurrentUserUsesManualPriceForCash() {
+        User user = new User(8L, "ivy", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+        when(itemRepository.save(any(PortfolioItem.class))).thenReturn(500L);
+
+        AddPortfolioItemRequest request = new AddPortfolioItemRequest(
+                "cash-usd", AssetType.CASH, new BigDecimal("20"), LocalDate.now(), new BigDecimal("1.02")
+        );
+
+        long id = service.addItemForCurrentUser(request);
+
+        assertEquals(500L, id);
+        ArgumentCaptor<PortfolioItem> captor = ArgumentCaptor.forClass(PortfolioItem.class);
+        verify(itemRepository).save(captor.capture());
+        assertEquals(new BigDecimal("1.02"), captor.getValue().getBuyPrice());
+        verify(priceClientService, never()).getPriceForDate(any(), any());
+    }
+
+    @Test
+    void addItemForCurrentUserRequiresManualPriceForBond() {
+        User user = new User(8L, "ivy", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+
+        AddPortfolioItemRequest request = new AddPortfolioItemRequest(
+                "usbond", AssetType.BOND, new BigDecimal("2"), LocalDate.now(), null
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.addItemForCurrentUser(request));
+
+        assertEquals("Manual price is required for CASH and BOND assets", ex.getMessage());
+        verify(priceClientService, never()).getPriceForDate(any(), any());
+    }
+
+    @Test
+    void getItemsForCurrentUserUsesDefaultMarketPriceForBondTicker() {
+        User user = new User(7L, "bob", "pw", LocalDateTime.now());
+        when(currentUserService.getCurrentUser()).thenReturn(user);
+
+        PortfolioItem bond = new PortfolioItem(3L, 7L, "BOND", AssetType.BOND,
+                new BigDecimal("2.00"), new BigDecimal("97.50"), LocalDate.parse("2026-01-03"));
+        when(itemRepository.findByUserId(7L)).thenReturn(List.of(bond));
+
+        List<PortfolioItemResponse> responses = service.getItemsForCurrentUser();
+
+        assertEquals(1, responses.size());
+        assertEquals(new BigDecimal("100.00"), responses.get(0).currentPrice());
+        assertEquals(new BigDecimal("200.00"), responses.get(0).currentValue());
+        assertEquals(new BigDecimal("5.00"), responses.get(0).profitLoss());
+        verify(priceClientService, never()).getCurrentPrice("BOND");
     }
 }
 
