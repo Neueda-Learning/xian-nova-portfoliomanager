@@ -3,6 +3,7 @@ package org.xian.protfoliomanage.Service;
 import org.xian.protfoliomanage.Dto.AddPortfolioItemRequest;
 import org.xian.protfoliomanage.Dto.PortfolioItemResponse;
 import org.xian.protfoliomanage.Dto.PortfolioSummaryResponse;
+import org.xian.protfoliomanage.Model.AssetType;
 import org.xian.protfoliomanage.Model.PortfolioItem;
 import org.xian.protfoliomanage.Model.User;
 import org.xian.protfoliomanage.Repository.PortfolioItemRepository;
@@ -14,6 +15,9 @@ import java.util.*;
 
 @Service
 public class PortfolioService {
+
+    private static final BigDecimal CASH_DEFAULT_PRICE = BigDecimal.ONE;
+    private static final BigDecimal BOND_DEFAULT_PRICE = new BigDecimal("100");
 
     private final PortfolioItemRepository itemRepository;
     private final CurrentUserService currentUserService;
@@ -58,12 +62,13 @@ public class PortfolioService {
     public long addItemForCurrentUser(AddPortfolioItemRequest request) {
         User user = currentUserService.getCurrentUser();
         String ticker = normalizeTicker(request.ticker());
+        AssetType assetType = requireAssetType(request.assetType());
         PortfolioItem item = new PortfolioItem();
         item.setUserId(user.getId());
         item.setTicker(ticker);
-        item.setAssetType(request.assetType());
+        item.setAssetType(assetType);
         item.setQuantity(request.quantity());
-        item.setBuyPrice(resolveEntryPrice(ticker, request.purchaseDate()));
+        item.setBuyPrice(resolveEntryPrice(assetType, ticker, request.purchaseDate(), request.manualPrice()));
         item.setPurchaseDate(request.purchaseDate());
         return itemRepository.save(item);
     }
@@ -71,18 +76,19 @@ public class PortfolioService {
     public void updateItemForCurrentUser(Long id, AddPortfolioItemRequest request) {
         User user = currentUserService.getCurrentUser();
         String ticker = normalizeTicker(request.ticker());
+        AssetType assetType = requireAssetType(request.assetType());
         PortfolioItem existing = itemRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Portfolio item not found"));
 
-        BigDecimal buyPrice = shouldRefreshEntryPrice(existing, ticker, request.purchaseDate())
-                ? resolveEntryPrice(ticker, request.purchaseDate())
+        BigDecimal buyPrice = shouldRefreshEntryPrice(existing, ticker, request.purchaseDate(), assetType)
+                ? resolveEntryPrice(assetType, ticker, request.purchaseDate(), request.manualPrice())
                 : existing.getBuyPrice();
 
         PortfolioItem item = new PortfolioItem();
         item.setId(id);
         item.setUserId(user.getId());
         item.setTicker(ticker);
-        item.setAssetType(request.assetType());
+        item.setAssetType(assetType);
         item.setQuantity(request.quantity());
         item.setBuyPrice(buyPrice);
         item.setPurchaseDate(request.purchaseDate());
@@ -134,6 +140,10 @@ public class PortfolioService {
     }
 
     private BigDecimal resolveCurrentPrice(PortfolioItem item) {
+        if (item.getAssetType() != AssetType.STOCK) {
+            return resolveNonStockCurrentPrice(item);
+        }
+
         BigDecimal price = priceClientService.getCurrentPrice(item.getTicker());
         if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
             return price;
@@ -141,7 +151,25 @@ public class PortfolioService {
         return item.getBuyPrice();
     }
 
-    private BigDecimal resolveEntryPrice(String ticker, java.time.LocalDate purchaseDate) {
+    private BigDecimal resolveNonStockCurrentPrice(PortfolioItem item) {
+        String ticker = normalizeTicker(item.getTicker());
+        if ("CASH".equals(ticker)) {
+            return CASH_DEFAULT_PRICE;
+        }
+        if ("BOND".equals(ticker)) {
+            return BOND_DEFAULT_PRICE;
+        }
+        return item.getBuyPrice();
+    }
+
+    private BigDecimal resolveEntryPrice(AssetType assetType, String ticker, java.time.LocalDate purchaseDate, BigDecimal manualPrice) {
+        if (assetType == AssetType.CASH || assetType == AssetType.BOND) {
+            if (manualPrice == null || manualPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Manual price is required for CASH and BOND assets");
+            }
+            return manualPrice;
+        }
+
         BigDecimal resolvedPrice = priceClientService.getPriceForDate(ticker, purchaseDate);
         if (resolvedPrice == null || resolvedPrice.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Unable to fetch current market price for ticker: " + ticker);
@@ -149,9 +177,21 @@ public class PortfolioService {
         return resolvedPrice;
     }
 
-    private boolean shouldRefreshEntryPrice(PortfolioItem existing, String ticker, java.time.LocalDate purchaseDate) {
+    private boolean shouldRefreshEntryPrice(PortfolioItem existing, String ticker, java.time.LocalDate purchaseDate, AssetType assetType) {
+        if (assetType == AssetType.CASH || assetType == AssetType.BOND) {
+            return true;
+        }
+
         return !Objects.equals(existing.getTicker(), ticker)
-                || !Objects.equals(existing.getPurchaseDate(), purchaseDate);
+                || !Objects.equals(existing.getPurchaseDate(), purchaseDate)
+                || existing.getAssetType() != AssetType.STOCK;
+    }
+
+    private AssetType requireAssetType(AssetType assetType) {
+        if (assetType == null) {
+            throw new IllegalArgumentException("Asset type is required");
+        }
+        return assetType;
     }
 
     private String normalizeTicker(String ticker) {

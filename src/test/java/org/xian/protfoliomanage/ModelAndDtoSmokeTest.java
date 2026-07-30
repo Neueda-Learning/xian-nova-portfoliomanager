@@ -53,7 +53,7 @@ class ModelAndDtoSmokeTest {
     @Test
     void dtoRecordsExposeValues() {
         AddPortfolioItemRequest request = new AddPortfolioItemRequest(
-                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.parse("2026-01-01")
+                "AAPL", AssetType.STOCK, new BigDecimal("1"), LocalDate.parse("2026-01-01"), null
         );
         assertEquals("AAPL", request.ticker());
 

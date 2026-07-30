@@ -350,7 +350,7 @@
             </button>
         </div>
         <div class="dialog-body">
-            <p class="dialog-intro">Enter your trade details. The latest market price will be applied automatically.</p>
+            <p class="dialog-intro">Enter your trade details. Stock prices are fetched automatically; bond and cash prices are entered manually.</p>
             <div class="form-grid">
                 <label class="form-field" for="ticker">
                     <span>Ticker</span>
@@ -367,6 +367,10 @@
                 <label class="form-field" for="quantity">
                     <span>Quantity</span>
                     <input id="quantity" type="number" inputmode="decimal" min="0.0001" step="0.0001" placeholder="0.0000" required>
+                </label>
+                <label class="form-field" for="manualPriceField" id="manualPriceContainer" hidden>
+                    <span>Price</span>
+                    <input id="manualPriceField" type="number" inputmode="decimal" min="0.0001" step="0.0001" placeholder="0.0000">
                 </label>
                 <label class="form-field form-field-wide" for="purchaseDate">
                     <span>Purchase date</span>
