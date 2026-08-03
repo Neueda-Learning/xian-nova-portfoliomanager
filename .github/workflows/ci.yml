@@ -38,7 +38,7 @@ jobs:
           SPRING_PROFILES_ACTIVE: test
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: portfolio-manager-${{ github.sha }}
           path: target/*.jar
@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-report-${{ github.sha }}
           path: target/site/
